@@ -6,7 +6,7 @@ Pitfalls handled here:
 - Transient network failures / 5xx / 429 are retried with backoff; 4xx are not.
 - The API key is read server-side only and never logged or sent to the browser.
 """
-import json, mimetypes, os, time, uuid, urllib.request, urllib.error
+import json, mimetypes, os, re, time, uuid, urllib.request, urllib.error
 
 API = os.environ.get("KIE_API_BASE", "https://api.kie.ai/api/v1")          # overridable for tests
 UPLOAD = os.environ.get("KIE_UPLOAD_URL", "https://kieai.redpandaai.co/api/file-stream-upload")
@@ -30,6 +30,8 @@ class KieError(Exception):
     def __init__(self, code, msg, transient=False):
         self.code, self.msg, self.transient = code, msg, transient
         hint = FRIENDLY.get(code if isinstance(code, int) else _int(code))
+        if re.search(r"range|must be|unsupported|invalid|not allowed|required|too (long|short|large|small)", str(msg), re.I):
+            hint = "a parameter value is outside what this model accepts (kie reports it as a generic error code; not billed)"
         super().__init__(f"{code}: {msg}" + (f" — {hint}" if hint and hint.lower() not in str(msg).lower() else ""))
 
 

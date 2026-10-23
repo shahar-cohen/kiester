@@ -3,10 +3,10 @@
  "credit_usd": 0.005,
  "video": {
   "wan3": {"label": "Wan 3.0", "vendor": "Alibaba", "price_key": "resolution",
-   "price": {"480P": 8, "720P": 16, "1080P": 32}, "price_note": "720P verified (16 cr/s); 480P/1080P scaled",
+   "price": {"480P": 8, "720P": 16, "1080P": 32}, "price_note": "480P + 720P verified; 1080P scaled",
    "params": [
     {"key": "resolution", "type": "select", "opts": ["480P", "720P", "1080P"], "default": "720P"},
-    {"key": "duration", "type": "int", "min": 1, "max": 30, "default": 5, "label": "duration (s)"},
+    {"key": "duration", "type": "int", "min": 2, "max": 30, "default": 5, "label": "duration (s)", "note": "1 s is rejected (verified 2026-10-23)"},
     {"key": "aspect_ratio", "type": "select", "opts": ["adaptive", "16:9", "4:3", "1:1", "3:4", "9:16"], "default": "adaptive"},
     {"key": "audio", "type": "bool", "default": true},
     {"key": "seed", "type": "int", "min": 0, "max": 2147483647, "default": 0, "label": "seed (0 = random)"},
