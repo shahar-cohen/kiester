@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
-"""kie studio installer — Windows, macOS and Linux. Standard library only.
+"""Kiester installer — Windows, macOS and Linux. Standard library only.
+Kiester is an unofficial interface for the kie.ai API; it is not affiliated with or endorsed by kie.ai.
 
 Started by install.bat / install.command / install.sh (which first make sure Python 3.9+ exists).
 Shows a window (Tk); falls back to questions in the terminal when Tk is unavailable or with --console.
 
 What it does, all inside the user's account (no admin rights):
   1. creates a private Python environment in <repo>/.venv and installs flask, pillow, imageio-ffmpeg
-  2. adds "kie studio" to the app menu / Start menu and optionally the desktop
+  2. adds "Kiester" to the app menu / Start menu and optionally the desktop
      (the shortcut starts the server if needed and opens it in a Chrome/Edge app window)
   3. optionally starts the server automatically at login (systemd --user / LaunchAgent / Startup folder)
   4. optionally saves the kie.ai API key (it can also be entered later in the app)
@@ -19,11 +20,26 @@ VENV = os.path.join(REPO, ".venv")
 WIN, MAC = os.name == "nt", sys.platform == "darwin"
 VPY = os.path.join(VENV, "Scripts", "python.exe") if WIN else os.path.join(VENV, "bin", "python")
 VPYW = os.path.join(VENV, "Scripts", "pythonw.exe") if WIN else VPY
-ICONS = os.path.join(VENV, "kie-icons")
-PORT = os.environ.get("KIE_STUDIO_PORT", "8770")
-NAME = "kie studio"
+ICONS = os.path.join(VENV, "icons")
+PORT = os.environ.get("KIESTER_PORT", "8770")
+NAME = "Kiester"
+TAGLINE = "a kie.ai API interface"
+DISCLAIMER = "Independent, unofficial project — not affiliated with or endorsed by kie.ai."
+# Shown in the window (fold-out) and in text mode, for people who have never used an API key.
+KEY_HELP = [
+    ("What it is", "An API key is a long secret code that lets an app use your kie.ai account — like a password, "
+                   "but only for apps. Anyone who has it can spend your kie.ai credits, so keep it private. "
+                   "If it leaks, reset it on the kie.ai API key page; the old key then stops working.", None),
+    ("1. Sign in to kie.ai or create an account", "https://kie.ai/login", "https://kie.ai/login"),
+    ("2. Add credits — each generation costs credits (prices: kie.ai/pricing)", "https://kie.ai/billing", "https://kie.ai/billing"),
+    ("3. Copy your API key (create one there if the page has none)", "https://kie.ai/api-key", "https://kie.ai/api-key"),
+    ("4. Paste it here, or skip and paste it in Kiester when it first opens", None, None),
+]
+# names used before the project was renamed to Kiester; cleaned up on install / uninstall
+LEGACY = {"systemd": "kie-studio.service", "desktop": "kie-studio.desktop", "label": "ai.kie.studio",
+          "app": "kie studio.app", "lnk": ("kie studio.lnk", "kie studio server.lnk")}
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-sys.path.insert(0, REPO)   # kie_studio.client is stdlib-only, so the key can be checked before deps exist
+sys.path.insert(0, REPO)   # kiester.client is stdlib-only, so the key can be checked before deps exist
 
 
 class Step(Exception): pass
@@ -51,9 +67,9 @@ def server_up():
 def stop_server(log):
     """Stop a server we may have started earlier so the new environment takes over (best effort)."""
     if not WIN and not MAC and shutil.which("systemctl"):
-        run(["systemctl", "--user", "stop", "kie-studio.service"], log, check=False)
+        run(["systemctl", "--user", "stop", "kiester.service"], log, check=False)
     if MAC:
-        run(["launchctl", "bootout", f"gui/{os.getuid()}/ai.kie.studio"], log, check=False)
+        run(["launchctl", "bootout", f"gui/{os.getuid()}/local.kiester"], log, check=False)
     if server_up():
         try:   # detached `open`-started servers: find the PID listening on our port
             if WIN:
@@ -88,7 +104,7 @@ def make_venv(log):
     run([VPY, "-m", "pip", "install", "--disable-pip-version-check", "-r", os.path.join(REPO, "requirements.txt")], log)
     run([VPY, "-c", "import flask, PIL, shutil, imageio_ffmpeg; "
                     "f = shutil.which('ffmpeg') or imageio_ffmpeg.get_ffmpeg_exe(); print('ffmpeg:', f)"], log, cwd=REPO)
-    run([VPY, "-m", "kie_studio", "icons", ICONS], log, cwd=REPO)
+    run([VPY, "-m", "kiester", "icons", ICONS], log, cwd=REPO)
 
 
 def desktop_dir():
@@ -117,7 +133,7 @@ def win_shortcut(path, target, args, log, icon=None):
 def linux_desktop_entry(exec_args, name=NAME, comment="Generate videos and images with kie.ai"):
     cmd = " ".join(f'"{a}"' for a in exec_args)
     return (f"[Desktop Entry]\nType=Application\nName={name}\nComment={comment}\nExec={cmd}\n"
-            f"Path={REPO}\nIcon={os.path.join(ICONS, 'kie-studio.png')}\nTerminal=false\nCategories=Graphics;Video;AudioVideo;\n"
+            f"Path={REPO}\nIcon={os.path.join(ICONS, 'kiester.png')}\nTerminal=false\nCategories=Graphics;Video;AudioVideo;\n"
             f"StartupNotify=false\n")
 
 
@@ -125,17 +141,17 @@ def mac_app():
     app = os.path.expanduser(f"~/Applications/{NAME}.app")
     os.makedirs(os.path.join(app, "Contents", "MacOS"), exist_ok=True)
     os.makedirs(os.path.join(app, "Contents", "Resources"), exist_ok=True)
-    exe = os.path.join(app, "Contents", "MacOS", "kie-studio")
-    with open(exe, "w") as f: f.write(f'#!/bin/sh\ncd "{REPO}" && exec "{VPY}" -m kie_studio open\n')
+    exe = os.path.join(app, "Contents", "MacOS", "kiester")
+    with open(exe, "w") as f: f.write(f'#!/bin/sh\ncd "{REPO}" && exec "{VPY}" -m kiester open\n')
     os.chmod(exe, 0o755)
-    if os.path.exists(os.path.join(ICONS, "kie-studio.icns")):
-        shutil.copy(os.path.join(ICONS, "kie-studio.icns"), os.path.join(app, "Contents", "Resources", "icon.icns"))
+    if os.path.exists(os.path.join(ICONS, "kiester.icns")):
+        shutil.copy(os.path.join(ICONS, "kiester.icns"), os.path.join(app, "Contents", "Resources", "icon.icns"))
     with open(os.path.join(app, "Contents", "Info.plist"), "w") as f:
         f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
 <key>CFBundleName</key><string>{NAME}</string><key>CFBundleDisplayName</key><string>{NAME}</string>
-<key>CFBundleIdentifier</key><string>ai.kie.studio.launcher</string><key>CFBundleExecutable</key><string>kie-studio</string>
+<key>CFBundleIdentifier</key><string>local.kiester.launcher</string><key>CFBundleExecutable</key><string>kiester</string>
 <key>CFBundleIconFile</key><string>icon</string><key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>2.0</string><key>LSUIElement</key><true/>
 </dict></plist>
@@ -145,11 +161,11 @@ def mac_app():
 
 def shortcuts(menu, desktop, log):
     if WIN:
-        icon = os.path.join(ICONS, "kie-studio.ico")
+        icon = os.path.join(ICONS, "kiester.ico")
         targets = ([os.path.join(win_folder("Programs"), f"{NAME}.lnk")] if menu else []) + \
                   ([os.path.join(desktop_dir(), f"{NAME}.lnk")] if desktop else [])
         for t in targets:
-            win_shortcut(t, VPYW, "-m kie_studio open", log, icon); log(f"shortcut: {t}")
+            win_shortcut(t, VPYW, "-m kiester open", log, icon); log(f"shortcut: {t}")
     elif MAC:
         app = mac_app(); log(f"app: {app}  (find it with Spotlight or in Launchpad)")
         if desktop:
@@ -157,15 +173,15 @@ def shortcuts(menu, desktop, log):
             if os.path.islink(link): os.remove(link)
             if not os.path.exists(link): os.symlink(app, link); log(f"desktop alias: {link}")
     else:
-        entry = linux_desktop_entry([VPY, "-m", "kie_studio", "open"])
+        entry = linux_desktop_entry([VPY, "-m", "kiester", "open"])
         apps = os.path.expanduser("~/.local/share/applications")
         if menu:
             os.makedirs(apps, exist_ok=True)
-            p = os.path.join(apps, "kie-studio.desktop"); open(p, "w").write(entry); log(f"app menu entry: {p}")
+            p = os.path.join(apps, "kiester.desktop"); open(p, "w").write(entry); log(f"app menu entry: {p}")
             if shutil.which("update-desktop-database"): run(["update-desktop-database", apps], log, check=False)
         if desktop:
             d = desktop_dir(); os.makedirs(d, exist_ok=True)
-            p = os.path.join(d, "kie-studio.desktop"); open(p, "w").write(entry); os.chmod(p, 0o755)
+            p = os.path.join(d, "kiester.desktop"); open(p, "w").write(entry); os.chmod(p, 0o755)
             if shutil.which("gio"): run(["gio", "set", p, "metadata::trusted", "true"], log, check=False)   # GNOME "Allow launching"
             log(f"desktop shortcut: {p}")
 
@@ -173,19 +189,19 @@ def shortcuts(menu, desktop, log):
 def autostart(enable, log):
     if WIN:
         p = os.path.join(win_folder("Startup"), f"{NAME} server.lnk")
-        if enable: win_shortcut(p, VPYW, "-m kie_studio serve --log", log); log(f"starts at login: {p}")
+        if enable: win_shortcut(p, VPYW, "-m kiester serve --log", log); log(f"starts at login: {p}")
         elif os.path.exists(p): os.remove(p)
     elif MAC:
-        p = os.path.expanduser("~/Library/LaunchAgents/ai.kie.studio.plist")
-        run(["launchctl", "bootout", f"gui/{os.getuid()}/ai.kie.studio"], log, check=False)
+        p = os.path.expanduser("~/Library/LaunchAgents/local.kiester.plist")
+        run(["launchctl", "bootout", f"gui/{os.getuid()}/local.kiester"], log, check=False)
         if enable:
             os.makedirs(os.path.dirname(p), exist_ok=True)
             with open(p, "w") as f:
                 f.write(f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
-<key>Label</key><string>ai.kie.studio</string>
-<key>ProgramArguments</key><array><string>{VPY}</string><string>-m</string><string>kie_studio</string><string>serve</string><string>--log</string></array>
+<key>Label</key><string>local.kiester</string>
+<key>ProgramArguments</key><array><string>{VPY}</string><string>-m</string><string>kiester</string><string>serve</string><string>--log</string></array>
 <key>WorkingDirectory</key><string>{REPO}</string>
 <key>RunAtLoad</key><true/><key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
 </dict></plist>
@@ -193,11 +209,11 @@ def autostart(enable, log):
             run(["launchctl", "bootstrap", f"gui/{os.getuid()}", p], log, check=False); log(f"starts at login: {p}")
         elif os.path.exists(p): os.remove(p)
     else:
-        unit = os.path.expanduser("~/.config/systemd/user/kie-studio.service")
-        xdg = os.path.expanduser("~/.config/autostart/kie-studio-server.desktop")
+        unit = os.path.expanduser("~/.config/systemd/user/kiester.service")
+        xdg = os.path.expanduser("~/.config/autostart/kiester-server.desktop")
         systemd = shutil.which("systemctl") and run(["systemctl", "--user", "show-environment"], lambda *_: None, check=False)[0] == 0
         if systemd:
-            run(["systemctl", "--user", "disable", "--now", "kie-studio.service"], log, check=False)
+            run(["systemctl", "--user", "disable", "--now", "kiester.service"], log, check=False)
             if os.path.islink(unit) or os.path.exists(unit): os.remove(unit)   # older installs symlinked a unit from the repo
         if os.path.exists(xdg): os.remove(xdg)
         if not enable:
@@ -206,14 +222,14 @@ def autostart(enable, log):
         if systemd:
             os.makedirs(os.path.dirname(unit), exist_ok=True)
             with open(unit, "w") as f:
-                f.write(f"""# written by kie studio's installer (deploy/installer.py)
+                f.write(f"""# written by Kiester's installer (deploy/installer.py)
 [Unit]
-Description=kie studio (local kie.ai web UI)
+Description=Kiester (local kie.ai web UI)
 After=network-online.target
 
 [Service]
 WorkingDirectory={REPO}
-ExecStart={VPY} -m kie_studio serve
+ExecStart={VPY} -m kiester serve
 Environment=PYTHONUNBUFFERED=1
 Restart=on-failure
 RestartSec=5
@@ -224,16 +240,16 @@ TimeoutStopSec=10
 WantedBy=default.target
 """)
             run(["systemctl", "--user", "daemon-reload"], log)
-            run(["systemctl", "--user", "enable", "--now", "kie-studio.service"], log)
-            log(f"starts at login: {unit}  (logs: journalctl --user -u kie-studio)")
+            run(["systemctl", "--user", "enable", "--now", "kiester.service"], log)
+            log(f"starts at login: {unit}  (logs: journalctl --user -u kiester)")
         else:
             os.makedirs(os.path.dirname(xdg), exist_ok=True)
-            open(xdg, "w").write(linux_desktop_entry([VPY, "-m", "kie_studio", "serve", "--log"], f"{NAME} server", "Background server"))
+            open(xdg, "w").write(linux_desktop_entry([VPY, "-m", "kiester", "serve", "--log"], f"{NAME} server", "Background server"))
             log(f"starts at login: {xdg}")
 
 
 def save_key(key, log):
-    from kie_studio.client import Kie, KieError, save_api_key
+    from kiester.client import Kie, KieError, save_api_key
     key = key.strip()
     if not key: return
     try: bal = Kie(key).credits()
@@ -243,12 +259,36 @@ def save_key(key, log):
     save_api_key(key); log("API key saved" + (f" — balance {bal:g} credits" if bal is not None else ""))
 
 
+def remove_legacy(log):
+    """Remove launchers / autostart entries created by the pre-rename "kie studio" versions."""
+    if WIN:
+        for folder in ("Programs", "Startup", "Desktop"):
+            for n in LEGACY["lnk"]:
+                p = os.path.join(win_folder(folder) if folder != "Desktop" else desktop_dir(), n)
+                if os.path.exists(p): os.remove(p); log(f"removed old {p}")
+    elif MAC:
+        run(["launchctl", "bootout", f"gui/{os.getuid()}/{LEGACY['label']}"], lambda *_: None, check=False)
+        for p in (os.path.expanduser(f"~/Library/LaunchAgents/{LEGACY['label']}.plist"), os.path.join(desktop_dir(), LEGACY["app"])):
+            if os.path.lexists(p): os.remove(p); log(f"removed old {p}")
+        app = os.path.expanduser(f"~/Applications/{LEGACY['app']}")
+        if os.path.exists(app): shutil.rmtree(app); log(f"removed old {app}")
+    else:
+        unit = os.path.expanduser(f"~/.config/systemd/user/{LEGACY['systemd']}")
+        if os.path.lexists(unit) and shutil.which("systemctl"):
+            run(["systemctl", "--user", "disable", "--now", LEGACY["systemd"]], log, check=False)
+            os.remove(unit); run(["systemctl", "--user", "daemon-reload"], log, check=False); log(f"removed old {unit}")
+        for p in (os.path.expanduser(f"~/.local/share/applications/{LEGACY['desktop']}"), os.path.join(desktop_dir(), LEGACY["desktop"]),
+                  os.path.expanduser("~/.config/autostart/kie-studio-server.desktop")):
+            if os.path.exists(p): os.remove(p); log(f"removed old {p}")
+
+
 def install(opts, log):
+    remove_legacy(log)
     stop_server(log)
     log("\n== 1/4  Python packages"); make_venv(log)
     log("\n== 2/4  Shortcuts"); shortcuts(opts["menu"], opts["desktop"], log)
     log("\n== 3/4  Start at login"); autostart(opts["autostart"], log)
-    if not opts["autostart"]: log("off — the shortcut starts kie studio when you open it")
+    if not opts["autostart"]: log("off — the shortcut starts Kiester when you open it")
     log("\n== 4/4  API key")
     if opts.get("key"): save_key(opts["key"], log)
     else: log("already saved — kept" if has_key() else "skipped — the app will ask for it")
@@ -256,6 +296,7 @@ def install(opts, log):
 
 
 def uninstall(log):
+    remove_legacy(log)
     stop_server(log)
     autostart(False, log)
     if WIN:
@@ -267,20 +308,20 @@ def uninstall(log):
         app = os.path.expanduser(f"~/Applications/{NAME}.app")
         if os.path.exists(app): shutil.rmtree(app); log(f"removed {app}")
     else:
-        for p in (os.path.expanduser("~/.local/share/applications/kie-studio.desktop"), os.path.join(desktop_dir(), "kie-studio.desktop")):
+        for p in (os.path.expanduser("~/.local/share/applications/kiester.desktop"), os.path.join(desktop_dir(), "kiester.desktop")):
             if os.path.exists(p): os.remove(p); log(f"removed {p}")
     if os.path.exists(VENV): shutil.rmtree(VENV, ignore_errors=True); log(f"removed {VENV}")
     log("\nUninstalled. Your videos, images, history and API key were kept.")
 
 
 def launch():
-    subprocess.Popen([VPY, "-m", "kie_studio", "open"], cwd=REPO, creationflags=NO_WINDOW,
+    subprocess.Popen([VPY, "-m", "kiester", "open"], cwd=REPO, creationflags=NO_WINDOW,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def has_key():
     try:
-        from kie_studio.client import key_source; return bool(key_source())
+        from kiester.client import key_source; return bool(key_source())
     except Exception: return False
 
 
@@ -288,18 +329,21 @@ def has_key():
 def console(uninstall_only=False):
     log = lambda m: print(m, flush=True)
     yn = lambda q, d=True: (input(f"{q} [{'Y/n' if d else 'y/N'}] ").strip().lower() or ("y" if d else "n")).startswith("y")
-    print(f"\n{NAME} installer\n  app folder: {REPO}\n")
+    print(f"\n{NAME} — {TAGLINE} — installer\n  {DISCLAIMER}\n  app folder: {REPO}\n")
     try:
         if uninstall_only or (os.path.exists(VPY) and not yn("Install / update? (answer n to uninstall)")):
-            if yn("Uninstall kie studio (keeps your media and history)?", False): uninstall(log)
+            if yn("Uninstall Kiester (keeps your media and history)?", False): uninstall(log)
             return
         opts = {"menu": yn("Add to the app menu / Start menu?"), "desktop": yn("Add a desktop shortcut?"),
                 "autostart": yn("Start the server automatically when you log in?", False), "key": ""}
         if not has_key():
             import getpass
-            opts["key"] = getpass.getpass("kie.ai API key (from kie.ai/api-key; Enter to skip, input is hidden): ")
+            print("\nkie.ai API key — Kiester needs it to use your kie.ai account.")
+            for title, text, url in KEY_HELP:
+                print(f"  {title}" + (f": {text}" if text and not url else f"  →  {url}" if url else ""))
+            opts["key"] = getpass.getpass("\nPaste the key (input is hidden; Enter to skip): ")
         install(opts, log)
-        if yn("Open kie studio now?"): launch()
+        if yn("Open Kiester now?"): launch()
     except Step as e:
         print(f"\nERROR: {e}"); sys.exit(1)
 
@@ -313,15 +357,19 @@ def gui():
     root = tk.Tk(); root.title(f"Install {NAME}"); root.minsize(600, 540)
     if not WIN and not MAC: ttk.Style().theme_use("clam")   # Windows/macOS already get native themes
     title_font = tkfont.nametofont("TkDefaultFont").copy(); title_font.configure(size=18, weight="bold")
-    try: root.iconphoto(True, tk.PhotoImage(file=os.path.join(ICONS, "kie-studio.png")))
+    try: root.iconphoto(True, tk.PhotoImage(file=os.path.join(ICONS, "kiester.png")))
     except Exception: pass
     q = queue.Queue()
     pad = {"padx": 16}
     frm = ttk.Frame(root, padding=(0, 14)); frm.pack(fill="both", expand=True)
-    ttk.Label(frm, text=NAME, font=title_font).pack(anchor="w", **pad)
-    ttk.Label(frm, text="Generate videos and images with kie.ai models from a simple app window.\n"
+    hdr = ttk.Frame(frm); hdr.pack(anchor="w", **pad)
+    ttk.Label(hdr, text=NAME, font=title_font).pack(side="left")
+    ttk.Label(hdr, text="  " + TAGLINE, foreground="#666").pack(side="left", anchor="s", pady=(0, 3))
+    ttk.Label(frm, text="Generate videos and images with kie.ai's AI models from a simple app window.\n"
                         f"Installs into {REPO} for your user only — no admin rights needed.",
-              justify="left", wraplength=570).pack(anchor="w", pady=(2, 10), **pad)
+              justify="left", wraplength=570).pack(anchor="w", pady=(2, 2), **pad)
+    small = tkfont.nametofont("TkDefaultFont").copy(); small.configure(size=max(8, small.cget("size") - 1))
+    ttk.Label(frm, text=DISCLAIMER, foreground="#777", font=small).pack(anchor="w", pady=(0, 10), **pad)
     v_menu = tk.BooleanVar(value=True); v_desk = tk.BooleanVar(value=True); v_auto = tk.BooleanVar(value=False)
     menu_label = "Add to the Start menu" if WIN else "Add to Applications" if MAC else "Add to the app menu"
     for var, text in ((v_menu, menu_label), (v_desk, "Put a shortcut on the desktop"),
@@ -331,8 +379,22 @@ def gui():
     have = has_key()
     ttk.Label(kf, text="kie.ai API key " + ("(already saved — leave empty to keep it)" if have else "(optional — the app asks if empty)")).pack(anchor="w")
     v_key = tk.StringVar(); ent = ttk.Entry(kf, textvariable=v_key, show="•"); ent.pack(fill="x", pady=2)
-    link = ttk.Label(kf, text="Get your key at kie.ai/api-key", foreground="#6a4cff", cursor="hand2"); link.pack(anchor="w")
-    link.bind("<Button-1>", lambda e: webbrowser.open("https://kie.ai/api-key"))
+    link_font = small.copy(); link_font.configure(underline=True)
+    helpbox = ttk.Frame(kf)
+    def toggle_help():
+        if helpbox.winfo_ismapped(): helpbox.pack_forget(); tog.configure(text="▸ What's an API key, and where do I get one?")
+        else: helpbox.pack(fill="x", pady=(4, 0), after=tog); tog.configure(text="▾ What's an API key, and where do I get one?")
+    tog = ttk.Label(kf, text="▸ What's an API key, and where do I get one?", foreground="#c2410c", cursor="hand2")
+    tog.pack(anchor="w"); tog.bind("<Button-1>", lambda e: toggle_help())
+    for title, text, url in KEY_HELP:
+        row = ttk.Frame(helpbox); row.pack(fill="x", anchor="w", pady=1)
+        ttk.Label(row, text=title + (":" if url else ""), font=small, wraplength=560 if not url else 0,
+                  justify="left").pack(side="left" if url else "top", anchor="w")
+        if url:
+            a = ttk.Label(row, text=url, foreground="#c2410c", cursor="hand2", font=link_font); a.pack(side="left", padx=(5, 0))
+            a.bind("<Button-1>", lambda e, u=url: webbrowser.open(u))
+        elif text: ttk.Label(row, text=text, font=small, wraplength=560, justify="left", foreground="#444").pack(anchor="w")
+    if not have: toggle_help()   # first install: show it open
     bar = ttk.Progressbar(frm, mode="indeterminate"); bar.pack(fill="x", pady=(14, 4), **pad)
     out = scrolledtext.ScrolledText(frm, height=12, font=("TkFixedFont", 9), state="disabled", wrap="word")
     out.pack(fill="both", expand=True, **pad)

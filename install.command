@@ -1,8 +1,8 @@
 #!/bin/bash
-# kie studio installer for macOS — double-click in Finder.
+# Kiester installer for macOS — double-click in Finder.
 # If macOS says it "cannot be opened": right-click (or Control-click) the file → Open → Open.
 cd "$(dirname "$0")"
-{ echo "# kie studio install log — safe to delete"; date; } > install.log
+{ echo "# Kiester install log — safe to delete"; date; } > install.log
 exec > >(tee -a install.log) 2>&1
 
 ok() { "$1" -c 'import sys; sys.exit(sys.version_info < (3, 9))' 2>/dev/null; }
@@ -15,7 +15,7 @@ for c in /Library/Frameworks/Python.framework/Versions/Current/bin/python3 /opt/
 done
 
 if [ -z "$PY" ]; then
-  osascript -e 'display dialog "kie studio needs Python 3 (free).\n\nThe download page will open now. Install Python, then double-click install.command again." buttons {"OK"} default button 1 with title "kie studio"' >/dev/null
+  osascript -e 'display dialog "Kiester needs Python 3 (free).\n\nThe download page will open now. Install Python, then double-click install.command again." buttons {"OK"} default button 1 with title "Kiester"' >/dev/null
   open "https://www.python.org/downloads/macos/"
   exit 1
 fi

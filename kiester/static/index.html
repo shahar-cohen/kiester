@@ -3,13 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>kie studio</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c5cff'/><path d='M12 9l12 7-12 7z' fill='white'/></svg>">
+<title>Kiester</title>
+<meta name="description" content="Kiester — an unofficial interface for the kie.ai API">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23d9481f'/><path d='M9.5 7.5h3.6v6.9l6.2-6.9h4.4l-6.6 7.1 7 9.9h-4.4l-5-7.2-1.6 1.7v5.5H9.5z' fill='white'/></svg>">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand"><span class="logo">▶</span> kie studio</div>
+  <div class="brand"><span class="logo">K</span><span>Kiester<small>a kie.ai API interface</small></span></div>
   <nav class="tabs" id="tabs">
     <button data-kind="video" class="active">Video</button>
     <button data-kind="image">Image</button>
@@ -61,6 +62,8 @@
       <div class="grid" id="history"></div>
       <button class="ghost wide" id="more" hidden>Load more</button>
       <div class="stats" id="stats"></div>
+      <p class="disclaimer">Kiester is an independent, unofficial interface for the kie.ai API. It is not affiliated with or endorsed by kie.ai.
+        Generations are billed by kie.ai to your own account.</p>
     </div>
   </section>
 </main>
@@ -80,20 +83,35 @@
 
 <div class="keyscreen" id="keyScreen" hidden>
   <form class="card keycard" id="keyForm" autocomplete="off">
-    <div class="brand"><span class="logo">▶</span> kie studio</div>
-    <h2 id="keyTitle">Connect your kie.ai account</h2>
-    <p id="keyIntro">kie studio needs your kie.ai API key to generate videos and images. It stays on this computer and is only ever sent to kie.ai.</p>
-    <ol class="muted">
-      <li>Sign in at <a href="https://kie.ai/api-key" target="_blank" rel="noopener">kie.ai/api-key</a> (create a free account if you don't have one).</li>
-      <li>Copy your API key.</li>
-      <li>Paste it below.</li>
+    <div class="brand"><span class="logo">K</span><span>Kiester<small>a kie.ai API interface</small></span></div>
+    <h2 id="keyTitle">Connect Kiester to your kie.ai account</h2>
+    <p id="keyIntro">Kiester doesn't generate anything by itself. It sends your prompts to <b>kie.ai</b>, a pay-as-you-go AI service,
+      and shows you the results. To do that for you, it needs your kie.ai <b>API key</b>.</p>
+    <details class="keyhelp">
+      <summary>What is an API key?</summary>
+      <p>A long secret code that lets an app use your kie.ai account — like a password, but only for apps.
+        Anyone who has it can spend your kie.ai credits, so don't share it, post it or send it to anyone.
+        If it ever leaks, you can reset it on the kie.ai API key page; the old one then stops working.</p>
+    </details>
+    <ol class="steps">
+      <li><b>Sign in to kie.ai</b>, or create an account: <a href="https://kie.ai/login" target="_blank" rel="noopener">kie.ai/login</a></li>
+      <li><b>Add credits.</b> Every generation costs credits (a few cents to a few dollars each).
+        Prices: <a href="https://kie.ai/pricing" target="_blank" rel="noopener">kie.ai/pricing</a> ·
+        top up: <a href="https://kie.ai/billing" target="_blank" rel="noopener">kie.ai/billing</a>.
+        Kiester shows the estimated cost before every run.</li>
+      <li><b>Copy your key</b> from <a href="https://kie.ai/api-key" target="_blank" rel="noopener">kie.ai/api-key</a>
+        (create one there if the page has none yet). Copy the whole key — it is one long line of letters and numbers.</li>
+      <li><b>Paste it below</b> (<kbd>Ctrl</kbd>+<kbd>V</kbd>, or <kbd>⌘</kbd>+<kbd>V</kbd> on a Mac) and press <b>Save and connect</b>.
+        Kiester checks it with kie.ai before saving.</li>
     </ol>
-    <label class="field"><span>API key</span>
-      <div class="keyrow"><input id="keyInput" type="password" spellcheck="false" placeholder="Paste your API key" autocomplete="off">
-        <button type="button" class="ghost" id="keyShow" title="Show / hide">👁</button></div></label>
+    <label class="field"><span>kie.ai API key</span>
+      <div class="keyrow"><input id="keyInput" type="password" spellcheck="false" placeholder="Paste your API key here" autocomplete="off">
+        <button type="button" class="ghost" id="keyShow" title="Show / hide the key">👁</button></div></label>
     <div class="keyerr" id="keyErr" role="alert"></div>
     <div class="actions"><button class="primary" id="keySave" type="submit">Save and connect</button>
       <button class="ghost" type="button" id="keyCancel" hidden>Cancel</button></div>
+    <p class="muted keywhere">🔒 The key is saved only on this computer (<code>~/.config/kie/token</code>, readable by your user only)
+      and is sent only to kie.ai. Change it any time with the 🔑 button.</p>
   </form>
 </div>
 

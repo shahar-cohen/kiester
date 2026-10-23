@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""kie-studio: local web UI for kie.ai video + image generation.
+"""Kiester — a kie.ai API interface: local web UI for video + image generation.
+Independent project; not affiliated with or endorsed by kie.ai.
 
-Run:  python3 -m kie_studio serve   (installed launchers run `open`, which starts it if needed)  → http://127.0.0.1:8770
-Data: ~/Videos/kie/ (~/Movies/kie on macOS). Key: ~/.config/kie/token (set from the UI; never sent to the browser).
-Env:  KIE_STUDIO_HOST (default 127.0.0.1), KIE_STUDIO_PORT (8770), KIE_STUDIO_TOKEN (required when not on localhost).
+Run:  python3 -m kiester serve   (installed launchers run `open`, which starts it if needed)  → http://127.0.0.1:8770
+Data: ~/Videos/Kiester/ (~/Movies/Kiester on macOS; see paths.py). Key: ~/.config/kie/token (set from the UI; never sent to the browser).
+Env:  KIESTER_HOST (default 127.0.0.1), KIESTER_PORT (8770), KIESTER_TOKEN (required when not on localhost).
 """
 import hashlib, io, json, mimetypes, os, re, secrets, shutil, sqlite3, subprocess, sys, threading, time, uuid, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify, send_from_directory, abort, make_response
 
+from .paths import media_dir
 from .client import Kie, KieError, api_key, save_api_key, key_source
 
 try:
@@ -17,20 +19,20 @@ except ImportError:  # still works, just without image normalisation
     Image = None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MEDIA = os.path.expanduser(os.environ.get("KIE_STUDIO_MEDIA", "~/Movies/kie" if sys.platform == "darwin" else "~/Videos/kie"))
+MEDIA = media_dir()
 ASSETS = os.path.join(MEDIA, "assets")
 IMAGES_OUT = os.path.join(MEDIA, "images")
 DB_PATH = os.path.join(MEDIA, "studio.db")
-HOST = os.environ.get("KIE_STUDIO_HOST", "127.0.0.1")
-PORT = int(os.environ.get("KIE_STUDIO_PORT", "8770"))
-TOKEN = os.environ.get("KIE_STUDIO_TOKEN", "")
+HOST = os.environ.get("KIESTER_HOST", "127.0.0.1")
+PORT = int(os.environ.get("KIESTER_PORT", "8770"))
+TOKEN = os.environ.get("KIESTER_TOKEN", "")
 UPLOAD_TTL = 20 * 3600        # kie deletes uploaded files after 24 h; re-upload after 20 h
-POLL_EVERY = float(os.environ.get("KIE_STUDIO_POLL", "6"))
+POLL_EVERY = float(os.environ.get("KIESTER_POLL", "6"))
 JOB_HARD_TIMEOUT = 3 * 3600
 for d in (MEDIA, ASSETS, IMAGES_OUT): os.makedirs(d, exist_ok=True)
 
 if HOST not in ("127.0.0.1", "localhost", "::1") and not TOKEN:
-    raise SystemExit("Refusing to listen on a non-local address without KIE_STUDIO_TOKEN set.")
+    raise SystemExit("Refusing to listen on a non-local address without KIESTER_TOKEN set.")
 
 REG = json.load(open(os.path.join(HERE, "models.json")))
 CREDIT_USD = REG["credit_usd"]
@@ -378,7 +380,8 @@ def guard():
         if t and secrets.compare_digest(t, TOKEN): return  # cookie set in after_request
         if not secrets.compare_digest(request.cookies.get("kst", ""), TOKEN): abort(401)
     # CSRF: any other website could POST to localhost and spend credits. Custom header forces a CORS preflight we never approve.
-    if request.method not in ("GET", "HEAD") and request.headers.get("X-Studio") != "1": abort(403)
+    # (X-Studio: pages still open from before the rename)
+    if request.method not in ("GET", "HEAD") and "1" not in (request.headers.get("X-Kiester"), request.headers.get("X-Studio")): abort(403)
 
 @app.after_request
 def headers(resp):
@@ -629,20 +632,20 @@ def running(port=PORT):
 
 def main(log=None):
     if log is not None or sys.stdout is None:   # pythonw / launchd / autostart: no console, so log to a file
-        log = log or os.path.join(MEDIA, "kie-studio.log")
+        log = log or os.path.join(MEDIA, "kiester.log")
         if os.path.exists(log) and os.path.getsize(log) > 5e6: os.replace(log, log + ".old")
         f = open(log, "a", buffering=1, encoding="utf-8"); sys.stdout = sys.stderr = f
-        print(f"# kie-studio log — safe to delete\n{time.strftime('%Y-%m-%d %H:%M:%S')} starting")
+        print(f"# kiester log — safe to delete\n{time.strftime('%Y-%m-%d %H:%M:%S')} starting")
     # Windows lets a second process bind the same port, so check for a live instance explicitly
-    if running(): raise SystemExit(f"kie-studio is already running on port {PORT}.")
+    if running(): raise SystemExit(f"kiester is already running on port {PORT}.")
     from werkzeug.serving import make_server
     try: srv = make_server(HOST, PORT, app, threaded=True)
     except OSError as e:
-        raise SystemExit(f"Port {PORT} is busy ({e}). Is another kie UI running? Set KIE_STUDIO_PORT or stop it.")
+        raise SystemExit(f"Port {PORT} is busy ({e}). Is another kie UI running? Set KIESTER_PORT or stop it.")
     migrate(); recover()
     threading.Thread(target=poller, daemon=True).start()
     threading.Thread(target=backfill_credits, daemon=True).start()
-    print(f"kie-studio on http://127.0.0.1:{PORT}", flush=True)
+    print(f"kiester on http://127.0.0.1:{PORT}", flush=True)
     if not ffmpeg_exe(): print("warning: ffmpeg not found — posters, frames and stitching are disabled", flush=True)
     srv.serve_forever()
 

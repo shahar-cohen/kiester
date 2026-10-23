@@ -1,20 +1,21 @@
-"""kie-studio command line.
+"""Kiester command line (Kiester — a kie.ai API interface; unofficial).
 
-  python3 -m kie_studio serve [--log FILE]          run the web UI (http://127.0.0.1:8770)
-  python3 -m kie_studio open                        start it in the background if needed, then open it in an app window
-  python3 -m kie_studio models                      list models / modes / params
-  python3 -m kie_studio credits                     show the kie.ai balance
-  python3 -m kie_studio gen MODEL MODE "prompt" [--image SLOT=FILE ...] [--set KEY=VALUE ...] [--wait]
-  python3 -m kie_studio jobs [-n 10]                recent jobs
-  python3 -m kie_studio task TASK_ID                raw recordInfo for a kie task
+  python3 -m kiester serve [--log FILE]          run the web UI (http://127.0.0.1:8770)
+  python3 -m kiester open                        start it in the background if needed, then open it in an app window
+  python3 -m kiester models                      list models / modes / params
+  python3 -m kiester credits                     show the kie.ai balance
+  python3 -m kiester gen MODEL MODE "prompt" [--image SLOT=FILE ...] [--set KEY=VALUE ...] [--wait]
+  python3 -m kiester jobs [-n 10]                recent jobs
+  python3 -m kiester task TASK_ID                raw recordInfo for a kie task
 
 `gen` and `jobs` talk to the running server, so CLI jobs show up in the UI history and get the same
 upload caching, pre-flight balance check, restart recovery and download retries.
 """
 import argparse, json, os, subprocess, sys, time, urllib.request, urllib.error, uuid, webbrowser
+from .paths import media_dir
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PORT = os.environ.get("KIE_STUDIO_PORT", "8770")
+PORT = os.environ.get("KIESTER_PORT", "8770")
 BASE = f"http://127.0.0.1:{PORT}"
 UI_URL = f"http://127.0.0.1:{PORT}/"
 
@@ -65,14 +66,14 @@ def open_ui():
             flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
             kw = {"creationflags": flags}
         else: kw = {"start_new_session": True}
-        subprocess.Popen([py, "-m", "kie_studio", "serve", "--log", ""], cwd=os.path.dirname(HERE), stdin=subprocess.DEVNULL,
+        subprocess.Popen([py, "-m", "kiester", "serve", "--log", ""], cwd=os.path.dirname(HERE), stdin=subprocess.DEVNULL,
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, **kw)
         for _ in range(150):   # first start may migrate data / build posters
             if is_up(): break
             time.sleep(0.2)
         else:
-            media = os.path.expanduser(os.environ.get("KIE_STUDIO_MEDIA", "~/Movies/kie" if sys.platform == "darwin" else "~/Videos/kie"))
-            msg = f"kie studio did not start. See the log: {os.path.join(media, 'kie-studio.log')}"
+            media = media_dir()
+            msg = f"Kiester did not start. See the log: {os.path.join(media, 'kiester.log')}"
             _alert(msg); sys.exit(msg)
     open_window()
 
@@ -81,7 +82,7 @@ def _alert(msg):
     """Show an error even when started from a shortcut with no console."""
     try:
         import tkinter, tkinter.messagebox
-        r = tkinter.Tk(); r.withdraw(); tkinter.messagebox.showerror("kie studio", msg); r.destroy()
+        r = tkinter.Tk(); r.withdraw(); tkinter.messagebox.showerror("Kiester", msg); r.destroy()
     except Exception: pass
 
 
@@ -90,16 +91,18 @@ def make_icons(out):
     from PIL import Image, ImageDraw
     os.makedirs(out, exist_ok=True)
     s = 1024; im = Image.new("RGBA", (s, s), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
-    d.rounded_rectangle((40, 40, s - 40, s - 40), radius=230, fill=(124, 92, 255, 255))
-    d.polygon([(390, 280), (390, 744), (770, 512)], fill=(255, 255, 255, 255))
-    im.resize((256, 256), Image.LANCZOS).save(os.path.join(out, "kie-studio.png"))
-    im.save(os.path.join(out, "kie-studio.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
-    try: im.save(os.path.join(out, "kie-studio.icns"))
+    d.rounded_rectangle((0, 0, s, s), radius=256, fill=(217, 72, 31, 255))
+    k = [(9.5, 7.5), (13.1, 7.5), (13.1, 14.4), (19.3, 7.5), (23.7, 7.5), (17.1, 14.6), (24.1, 24.5), (19.7, 24.5),
+         (14.7, 17.3), (13.1, 19.0), (13.1, 24.5), (9.5, 24.5)]          # same "K" as the favicon (32-unit grid)
+    d.polygon([(x * 32, y * 32) for x, y in k], fill=(255, 255, 255, 255))
+    im.resize((256, 256), Image.LANCZOS).save(os.path.join(out, "kiester.png"))
+    im.save(os.path.join(out, "kiester.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    try: im.save(os.path.join(out, "kiester.icns"))
     except Exception: pass
 
 
 def call(method, path, body=None, files=None):
-    h = {"X-Studio": "1"}
+    h = {"X-Kiester": "1"}
     if files:
         b = uuid.uuid4().hex; parts = []
         for f in files:
@@ -117,7 +120,7 @@ def call(method, path, body=None, files=None):
         except Exception: msg = e.reason
         sys.exit(f"error {e.code}: {msg}")
     except urllib.error.URLError:
-        sys.exit(f"kie-studio server not reachable at {BASE}. Start it: python3 -m kie_studio serve")
+        sys.exit(f"kiester server not reachable at {BASE}. Start it: python3 -m kiester serve")
 
 
 def coerce(v):
@@ -127,7 +130,7 @@ def coerce(v):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="kie_studio", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap = argparse.ArgumentParser(prog="kiester", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
     sv = sub.add_parser("serve"); sv.add_argument("--log", nargs="?", const="", default=None, help="log to FILE (empty: default log in the data folder)")
     sub.add_parser("open"); ic = sub.add_parser("icons"); ic.add_argument("out")
@@ -174,7 +177,7 @@ def main():
 
     reg = call("GET", "/api/config")["registry"]
     kind = next((k for k in ("video", "image") if a.model in reg[k]), None)
-    if not kind: sys.exit(f"unknown model {a.model!r}; see: python3 -m kie_studio models")
+    if not kind: sys.exit(f"unknown model {a.model!r}; see: python3 -m kiester models")
     slots = {}
     for spec in a.image:
         slot, _, f = spec.partition("=")
@@ -192,7 +195,7 @@ def main():
         x = call("GET", f"/api/jobs/{jid}")
         if x["status"] != last: print(f"  {x['status']}", flush=True); last = x["status"]
         if x["status"] == "success":
-            media = os.path.expanduser(os.environ.get("KIE_STUDIO_MEDIA", "~/Videos/kie"))
+            media = media_dir()
             for o in x["outputs"]: print(os.path.join(media, o))
             if x.get("error"): print("warning:", x["error"])
             return

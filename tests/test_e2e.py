@@ -58,7 +58,7 @@ class FakeKie(BaseHTTPRequestHandler):
 class StudioE2E(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.mkdtemp(prefix="kie-studio-test-")
+        cls.tmp = tempfile.mkdtemp(prefix="kiester-test-")
         vid = os.path.join(cls.tmp, "src.mp4")
         subprocess.run(["ffmpeg", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=320x240:rate=24:duration=1",
                         "-pix_fmt", "yuv420p", vid], check=True)
@@ -70,14 +70,14 @@ class StudioE2E(unittest.TestCase):
         fk = f"http://127.0.0.1:{cls.fake.server_port}"
         cls.port = free_port(); cls.base = f"http://127.0.0.1:{cls.port}"
         media = os.path.join(cls.tmp, "media"); os.makedirs(media)
-        cls.env = {**os.environ, "KIE_KEY_FILE": os.path.join(cls.tmp, "token"), "KIE_STUDIO_MEDIA": media, "KIE_STUDIO_PORT": str(cls.port), "KIE_API_KEY": "test",
-                   "KIE_API_BASE": fk + "/api/v1", "KIE_UPLOAD_URL": fk + "/upload", "KIE_STUDIO_POLL": "0.3", "PYTHONDONTWRITEBYTECODE": "1"}
+        cls.env = {**os.environ, "KIE_KEY_FILE": os.path.join(cls.tmp, "token"), "KIESTER_MEDIA": media, "KIESTER_PORT": str(cls.port), "KIE_API_KEY": "test",
+                   "KIE_API_BASE": fk + "/api/v1", "KIE_UPLOAD_URL": fk + "/upload", "KIESTER_POLL": "0.3", "PYTHONDONTWRITEBYTECODE": "1"}
         cls.media = media
         cls.start()
 
     @classmethod
     def start(cls):
-        cls.proc = subprocess.Popen([sys.executable, "-m", "kie_studio", "serve"], cwd=ROOT, env=cls.env,
+        cls.proc = subprocess.Popen([sys.executable, "-m", "kiester", "serve"], cwd=ROOT, env=cls.env,
                                     stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         for _ in range(100):
             try: urllib.request.urlopen(cls.base + "/api/config", timeout=1); return
@@ -89,7 +89,7 @@ class StudioE2E(unittest.TestCase):
         cls.proc.terminate(); cls.proc.wait(5); cls.fake.shutdown(); shutil.rmtree(cls.tmp, ignore_errors=True)
 
     def req(self, method, path, body=None, headers=None, raw=None, ctype=None):
-        h = {"X-Studio": "1", **(headers or {})}
+        h = {"X-Kiester": "1", **(headers or {})}
         data = raw if raw is not None else (json.dumps(body).encode() if body is not None else None)
         if data is not None: h["Content-Type"] = ctype or "application/json"
         try:
@@ -136,7 +136,7 @@ class StudioE2E(unittest.TestCase):
         self.assertEqual(c.exception.code, 403)
 
     def test_database_not_served(self):
-        for p in ("/media/studio.db", "/media/history.json", "/media/../kie_studio/server.py"):
+        for p in ("/media/studio.db", "/media/history.json", "/media/../kiester/server.py"):
             st, _ = self.req("GET", p); self.assertIn(st, (403, 404), p)
 
     def test_full_video_flow(self):
@@ -217,10 +217,10 @@ class StudioE2E(unittest.TestCase):
     def test_first_run_without_key(self):
         """No key anywhere → UI is told so; a rejected key is not saved; a good key is saved 0600 and used."""
         port = free_port(); keyfile = os.path.join(self.tmp, "fresh-token")
-        env = {**self.env, "KIE_STUDIO_PORT": str(port), "KIE_KEY_FILE": keyfile,
-               "KIE_STUDIO_MEDIA": os.path.join(self.tmp, "media2")}
+        env = {**self.env, "KIESTER_PORT": str(port), "KIE_KEY_FILE": keyfile,
+               "KIESTER_MEDIA": os.path.join(self.tmp, "media2")}
         env.pop("KIE_API_KEY")
-        p = subprocess.Popen([sys.executable, "-m", "kie_studio", "serve"], cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        p = subprocess.Popen([sys.executable, "-m", "kiester", "serve"], cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
         base, self.base = self.base, f"http://127.0.0.1:{port}"
         try:
             for _ in range(100):

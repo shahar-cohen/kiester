@@ -1,8 +1,8 @@
 @echo off
-rem kie studio installer for Windows - double-click. Installs Python with winget if needed, then opens the installer window.
+rem Kiester installer for Windows - double-click. Installs Python with winget if needed, then opens the installer window.
 setlocal EnableDelayedExpansion
 cd /d "%~dp0"
-title kie studio installer
+title Kiester installer
 
 set "PYEXE="
 rem The "py" launcher avoids the Microsoft Store "python" alias, which only opens the Store.

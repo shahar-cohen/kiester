@@ -1,61 +1,87 @@
-# kie studio
+# Kiester — a kie.ai API interface
 
-Local web UI + CLI for [kie.ai](https://kie.ai) video and image generation, for Windows, macOS and Linux.
-One Python repo, no npm, no Electron: Flask serves a plain HTML/CSS/JS front end (no build step) that opens in a
-Chrome/Edge app window; SQLite holds history; ffmpeg does posters/frames/stitching.
+A desktop app for generating videos and images with the AI models available through [kie.ai](https://kie.ai)
+(Wan, Seedance, Grok Imagine, FLUX.2, Qwen Image, Seedream…). Windows, macOS and Linux.
+
+> **Unofficial.** Kiester is an independent open-source project. It is not affiliated with, endorsed by or supported
+> by kie.ai. You use your own kie.ai account and API key, and kie.ai bills generations to that account.
+
+## Install (3 steps)
+
+1. **Download** — click the green **Code** button above → **Download ZIP**, and unzip it somewhere permanent
+   (e.g. your Documents folder). Or: `git clone https://github.com/shahar-cohen/kiester`
+2. **Run the installer** for your system:
+
+   | | |
+   |---|---|
+   | **Windows** | double-click **`install.bat`**. If Windows shows a security warning, choose **Run** (or **More info → Run anyway**). Python is installed automatically if needed (no admin rights). |
+   | **macOS** | double-click **`install.command`**. If macOS says it can't be opened: **right-click → Open → Open**. If Python is missing, the download page opens — install it, then run `install.command` again. |
+   | **Linux** | run **`./install.sh`** in a terminal (it may ask for your password to install `python3-venv` / `python3-tk`). |
+
+3. In the installer window choose your shortcuts, click **Install**, then **Open Kiester**.
+
+Kiester opens in its own window. The first time, it asks for your kie.ai API key — see below.
+
+### Getting a kie.ai API key
+
+An **API key** is a long secret code that lets an app use your kie.ai account — like a password, but only for apps.
+Anyone who has it can spend your credits, so don't share or post it. You can reset it on kie.ai at any time
+(the old key then stops working).
+
+1. **Sign in to kie.ai** or create an account: https://kie.ai/login
+2. **Add credits** — every generation costs credits (a few cents to a few dollars each).
+   Prices: https://kie.ai/pricing · top up: https://kie.ai/billing
+3. **Copy your key** from https://kie.ai/api-key (create one there if the page has none yet).
+4. **Paste it into Kiester** when it asks (or into the installer). Kiester checks it with kie.ai before saving.
+
+The key is stored only on your computer, in `~/.config/kie/token` (readable by your user only), and is sent only to
+kie.ai. Change it later with the 🔑 button in the app.
+
+### Uninstall
+Run the installer again and click **Uninstall**. It removes the shortcuts, autostart and Kiester's private Python
+environment; your videos, images, history and API key are kept. Then delete the folder.
+
+## How it works
+
+One Python repo, no npm, no Electron: a small Flask server on `http://127.0.0.1:8770` (this computer only) serves a
+plain HTML/CSS/JS front end that opens in a Chrome / Edge / Brave / Chromium app window (`--app` mode: no tabs or
+address bar), falling back to the default browser. Edge ships with Windows, so Windows always gets the app window.
+SQLite holds history; ffmpeg makes thumbnails, grabs frames and stitches clips.
 
 ```
 install.bat / install.command / install.sh   double-click installers (Windows / macOS / Linux)
-kie_studio/
+deploy/installer.py   installer window (Tk) + text mode; stdlib only
+kiester/
   server.py      Flask app, job runner, poller, asset normalisation, migration from the v1 history.json
   client.py      kie.ai API client (stdlib only)
+  paths.py       data folder location
   models.json    model registry: params, modes, image slots, prices   ← edit this to add models
   __main__.py    CLI (serve / open / gen / jobs / models / credits / task)
   static/        index.html, style.css, app.js
-deploy/installer.py   the installer window (Tk) + text mode; stdlib only
 tests/           test_e2e.py (fake kie API, no credits) + browser_smoke.py (headless Chrome)
 ```
 
-## Install
-
-Download the repo (or `git clone`), then double-click the installer for your system:
-
-| | |
-|---|---|
-| **Windows** | `install.bat` — installs Python 3.13 with winget if it's missing (no admin needed) |
-| **macOS** | `install.command` — if macOS blocks it: right-click → Open → Open. Needs Python from python.org (the installer opens the download page if it's missing) |
-| **Linux** | `./install.sh` — installs `python3-venv` / `python3-tk` with your package manager if missing (asks for your password) |
-
-The installer window lets you choose an app-menu / Start-menu entry, a desktop shortcut, starting at login, and
-optionally paste the API key. Everything installs for your user only: Python packages go into `.venv/` inside this folder.
-**Uninstall** is a button in the same window (`--uninstall --console` in text mode); it keeps your media, history and key.
-Without a desktop (or with `--console`) it asks the same questions in the terminal.
-
-The **kie studio** shortcut starts the server in the background if it isn't running and opens it in its own
-app window (Chrome / Edge / Brave / Chromium `--app` mode; no tabs or address bar), falling back to the default browser.
-Edge ships with Windows, so Windows always gets the app window. The UI is always at http://127.0.0.1:8770.
-
-On first start the app asks for your kie.ai API key (from https://kie.ai/api-key), checks it with kie.ai and saves it
-to `~/.config/kie/token` (user-only permissions). Change it later with the 🔑 button.
+The installer puts Python packages in `.venv/` inside the Kiester folder, for your user only. Without a desktop
+(or with `--console`) it asks the same questions in the terminal; `--uninstall --console` uninstalls.
 
 | | default |
 |---|---|
-| data | `~/Videos/kie/` (macOS: `~/Movies/kie/`) — `studio.db`, `assets/`, `images/`, `posters/`, videos, `kie-studio.log` |
+| data | `~/Videos/Kiester/` (macOS: `~/Movies/Kiester/`) — `studio.db`, `assets/`, `images/`, `posters/`, videos, `kiester.log`. Installs from before the rename keep using `~/Videos/kie/`. |
 | ffmpeg | the system one if installed, otherwise the copy bundled by the `imageio-ffmpeg` package |
-| autostart | Linux: systemd `--user` unit (`journalctl --user -u kie-studio`), macOS: LaunchAgent, Windows: Startup folder |
+| autostart (optional) | Linux: systemd `--user` unit (`journalctl --user -u kiester`), macOS: LaunchAgent, Windows: Startup folder |
 
-Environment overrides: `KIE_STUDIO_PORT` (8770), `KIE_STUDIO_MEDIA`, `KIE_API_KEY` (overrides the saved key),
-`KIE_KEY_FILE`, `KIE_STUDIO_HOST` (non-local addresses require `KIE_STUDIO_TOKEN`; open `/?token=…` once).
+Environment overrides: `KIESTER_PORT` (8770), `KIESTER_MEDIA`, `KIE_API_KEY` (overrides the saved key),
+`KIE_KEY_FILE`, `KIESTER_HOST` (non-local addresses require `KIESTER_TOKEN`; open `/?token=…` once).
 
-For development: `python3 -m kie_studio serve` with flask, pillow and (optionally) imageio-ffmpeg installed.
+For development: `python3 -m kiester serve` with flask, pillow and (optionally) imageio-ffmpeg installed.
 
 ## CLI
 
 ```zsh
-python3 -m kie_studio models
-python3 -m kie_studio gen wan3 i2v "she turns and smiles" --image first_frame_url=a.jpg --set duration=5 --set resolution=720P --wait
-python3 -m kie_studio jobs -n 5
-python3 -m kie_studio credits
+python3 -m kiester models
+python3 -m kiester gen wan3 i2v "she turns and smiles" --image first_frame_url=a.jpg --set duration=5 --set resolution=720P --wait
+python3 -m kiester jobs -n 5
+python3 -m kiester credits
 ```
 `gen` goes through the running server, so CLI jobs appear in the UI history.
 
@@ -84,7 +110,7 @@ python3 -m kie_studio credits
   but never carries `seed` (0 = random on Wan, fixed on Seedance).
 
 **Security**
-- API key never reaches the browser (the key screen sends it once; it is never echoed back). Host-header check (DNS rebinding) + required `X-Studio` header (CSRF from other sites).
+- API key never reaches the browser (the key screen sends it once; it is never echoed back). Host-header check (DNS rebinding) + required `X-Kiester` header (CSRF from other sites).
 - `/media` never serves the database, JSON, dotfiles or partial downloads.
 
 ## Workflow features

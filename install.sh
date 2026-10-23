@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# kie studio installer for Linux: makes sure Python 3.9+, venv and Tk exist, then opens the installer window.
+# Kiester installer for Linux: makes sure Python 3.9+, venv and Tk exist, then opens the installer window.
 #   ./install.sh               install / update (window, or text mode without a desktop)
 #   ./install.sh --console     text mode
 #   ./install.sh --uninstall --console
 # Log: install.log next to this file (safe to delete).
 set -uo pipefail
 cd "$(dirname "$0")"
-{ echo "# kie studio install log — safe to delete"; date; } > install.log
+{ echo "# Kiester install log — safe to delete"; date; } > install.log
 exec > >(tee -a install.log) 2>&1
 
 need=()

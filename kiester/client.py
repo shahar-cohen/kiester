@@ -13,7 +13,7 @@ UPLOAD = os.environ.get("KIE_UPLOAD_URL", "https://kieai.redpandaai.co/api/file-
 KEY_FILE = os.path.expanduser(os.environ.get("KIE_KEY_FILE", "~/.config/kie/token"))
 
 FRIENDLY = {
-    401: "Invalid or missing API key (set it in kie studio).",
+    401: "Invalid or missing API key (set it in Kiester).",
     402: "Not enough kie.ai credits. Top up at kie.ai/billing.",
     404: "Endpoint or task not found.",
     422: "kie rejected the request parameters.",
@@ -70,7 +70,7 @@ class Kie:
         self.key = key or api_key()
 
     def _req(self, method, url, body=None, headers=None, timeout=90, retries=3):
-        h = {"Authorization": f"Bearer {self.key}", "User-Agent": "kie-studio/1.0"}
+        h = {"Authorization": f"Bearer {self.key}", "User-Agent": "kiester/2.0 (+https://github.com/shahar-cohen/kiester)"}
         h.update(headers or {})
         delay = 2
         for attempt in range(retries + 1):
@@ -115,7 +115,7 @@ class Kie:
         boundary = uuid.uuid4().hex
         ctype = mimetypes.guess_type(name)[0] or "application/octet-stream"
         parts = []
-        for k, v in (("uploadPath", "images/kie-studio"), ("fileName", name)):
+        for k, v in (("uploadPath", "images/kiester"), ("fileName", name)):
             parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{k}"\r\n\r\n{v}\r\n'.encode())
         parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{name}"\r\n'
                      f"Content-Type: {ctype}\r\n\r\n".encode())
@@ -131,7 +131,7 @@ class Kie:
         tmp = dest + ".part"; delay = 3
         for attempt in range(retries + 1):
             try:
-                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "kie-studio/1.0"}), timeout=300) as r, open(tmp, "wb") as f:
+                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "kiester/2.0 (+https://github.com/shahar-cohen/kiester)"}), timeout=300) as r, open(tmp, "wb") as f:
                     while chunk := r.read(1 << 16): f.write(chunk)
                 if os.path.getsize(tmp) == 0: raise OSError("empty download")
                 os.replace(tmp, dest); return dest

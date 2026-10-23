@@ -1,7 +1,7 @@
 [project]
-name = "kie-studio"
-version = "2.0.0"
-description = "Local web UI + CLI for kie.ai video and image generation"
+name = "kiester"
+version = "2.1.0"
+description = "Kiester — an unofficial desktop interface for the kie.ai API (video + image generation)"
 requires-python = ">=3.9"
 # Normal installs use install.bat / install.command / install.sh, which put these in .venv. No npm, no JS build step.
 dependencies = ["flask>=2.3", "pillow>=9", "imageio-ffmpeg>=0.4.9"]
@@ -11,13 +11,13 @@ dependencies = ["flask>=2.3", "pillow>=9", "imageio-ffmpeg>=0.4.9"]
 dev = ["websockets>=12"]
 
 [project.scripts]
-kie-studio = "kie_studio.__main__:main"
+kiester = "kiester.__main__:main"
 
 [tool.setuptools]
-packages = ["kie_studio"]
+packages = ["kiester"]
 
 [tool.setuptools.package-data]
-kie_studio = ["models.json", "static/*"]
+kiester = ["models.json", "static/*"]
 
 [build-system]
 requires = ["setuptools>=64"]

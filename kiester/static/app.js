@@ -1,4 +1,4 @@
-// kie studio front end — plain ES2020, no build step, no dependencies.
+// Kiester front end — plain ES2020, no build step, no dependencies.
 "use strict";
 
 const $ = (s, el = document) => el.querySelector(s);
@@ -18,12 +18,12 @@ const store = {  // localStorage can throw (private mode, blocked storage) — n
 
 // ------------------------------------------------------------------ api
 async function api(method, path, body) {
-  const opt = {method, headers: {"X-Studio": "1"}};
+  const opt = {method, headers: {"X-Kiester": "1"}};
   if (body instanceof FormData) opt.body = body;
   else if (body !== undefined) { opt.body = JSON.stringify(body); opt.headers["Content-Type"] = "application/json"; }
   let r;
   try { r = await fetch(path, opt); }
-  catch { throw new Error("Server not reachable — is kie-studio running?"); }
+  catch { throw new Error("Server not reachable — is kiester running?"); }
   let data = null;
   try { data = await r.json(); } catch {}
   if (!r.ok) throw new Error((data && data.error) || `${r.status} ${r.statusText}`);
@@ -364,7 +364,7 @@ function announce(j) {
   }
   if (document.hidden && "Notification" in window && Notification.permission === "granted") {
     try {
-      const n = new Notification(j.status === "success" ? "kie: generation finished" : "kie: generation failed",
+      const n = new Notification(j.status === "success" ? "Kiester: generation finished" : "Kiester: generation failed",
         {body: (j.status === "fail" ? (j.error || "") + "\n" : "") + j.prompt.slice(0, 120), tag: j.id,
          icon: j.poster ? mediaUrl(j.poster) : undefined});
       n.onclick = () => { window.focus(); openDetail(j.id); n.close(); };
@@ -387,7 +387,7 @@ const fmtDate = t => {
 function renderActive() {
   const act = [...S.jobs.values()].filter(j => ACTIVE.includes(j.status)).sort((a, b) => b.created - a.created);
   $("#activeWrap").hidden = !act.length;
-  document.title = act.length ? `(${act.length}) kie studio` : "kie studio";
+  document.title = act.length ? `(${act.length}) Kiester` : "Kiester";
   $("#active").innerHTML = act.map(j => `
     <div class="act" data-id="${esc(j.id)}">
       <div class="spin"></div>
@@ -862,7 +862,7 @@ window.addEventListener("beforeunload", () => { d().prompt = $("#prompt").value;
 // Shown on first run (no key saved), when kie rejects the saved key, or from the 🔑 button.
 function showKeyScreen({reason = "", cancellable = false} = {}) {
   $("#keyScreen").hidden = false;
-  $("#keyTitle").textContent = reason ? "Your kie.ai API key needs attention" : cancellable ? "Change API key" : "Connect your kie.ai account";
+  $("#keyTitle").textContent = reason ? "Your kie.ai API key needs attention" : cancellable ? "Change your kie.ai API key" : "Connect Kiester to your kie.ai account";
   $("#keyErr").textContent = reason;
   $("#keyCancel").hidden = !cancellable;
   $("#keyInput").value = ""; $("#keyInput").focus();
