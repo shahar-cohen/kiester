@@ -1,0 +1,137 @@
+{
+ "_doc": "Model registry. Schemas scraped from kie.ai playground pages on 2026-10-23. price = credits per output second (video) or per image (image), keyed by the value of price_key; 1 credit = $0.005. 'verified' prices were checked against creditsConsumed of real tasks. opts keep their JSON types (some endpoints want \"5\" strings, others ints).",
+ "credit_usd": 0.005,
+ "video": {
+  "wan3": {"label": "Wan 3.0", "vendor": "Alibaba", "price_key": "resolution",
+   "price": {"480P": 8, "720P": 16, "1080P": 32}, "price_note": "720P verified (16 cr/s); 480P/1080P scaled",
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["480P", "720P", "1080P"], "default": "720P"},
+    {"key": "duration", "type": "int", "min": 1, "max": 30, "default": 5, "label": "duration (s)"},
+    {"key": "aspect_ratio", "type": "select", "opts": ["adaptive", "16:9", "4:3", "1:1", "3:4", "9:16"], "default": "adaptive"},
+    {"key": "audio", "type": "bool", "default": true},
+    {"key": "seed", "type": "int", "min": 0, "max": 2147483647, "default": 0, "label": "seed (0 = random)"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2v": {"label": "Text → video", "model": "wan/3-0-video", "slots": []},
+    "i2v": {"label": "First / last frame → video", "model": "wan/3-0-video",
+            "slots": [{"key": "first_frame_url", "label": "First frame", "required": true},
+                      {"key": "last_frame_url", "label": "Last frame"}]},
+    "ref": {"label": "Reference images (@Image1…)", "model": "wan/3-0-video",
+            "slots": [{"key": "reference_image_urls", "label": "Reference images", "max": 10, "array": true, "required": true}],
+            "hint": "Refer to images in the prompt as @Image1, @Image2… in upload order."}}},
+
+  "wan26": {"label": "Wan 2.6", "vendor": "Alibaba", "price_key": "resolution", "price": null,
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["720p", "1080p"], "default": "720p"},
+    {"key": "duration", "type": "select", "opts": ["5", "10", "15"], "default": "5", "label": "duration (s)"},
+    {"key": "multi_shots", "type": "bool", "default": false},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2v": {"label": "Text → video", "model": "wan/2-6-text-to-video", "slots": []},
+    "i2v": {"label": "Image → video", "model": "wan/2-6-image-to-video",
+            "slots": [{"key": "image_urls", "label": "Image", "max": 1, "array": true, "required": true}]}}},
+
+  "wan26flash": {"label": "Wan 2.6 Flash", "vendor": "Alibaba", "price_key": "resolution", "price": null,
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["720p", "1080p"], "default": "720p"},
+    {"key": "duration", "type": "select", "opts": ["5", "10", "15"], "default": "5", "label": "duration (s)"},
+    {"key": "audio", "type": "bool", "default": true},
+    {"key": "multi_shots", "type": "bool", "default": false},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "i2v": {"label": "Image → video", "model": "wan/2-6-flash-image-to-video",
+            "slots": [{"key": "image_urls", "label": "Image", "max": 1, "array": true, "required": true}]}}},
+
+  "grok15": {"label": "Grok Imagine 1.5", "vendor": "xAI", "price_key": "resolution",
+   "price": {"480p": 2.4, "720p": 4.5, "1080p": 8}, "price_note": "from kie page",
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["480p", "720p", "1080p"], "default": "480p"},
+    {"key": "duration", "type": "int", "min": 1, "max": 15, "default": 8, "label": "duration (s)"},
+    {"key": "aspect_ratio", "type": "select", "opts": ["auto", "1:1", "16:9", "9:16", "3:2", "2:3"], "default": "auto"},
+    {"key": "enable_audio", "type": "bool", "default": true, "label": "audio"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2v": {"label": "Text → video", "model": "grok-imagine-video-1-5-preview", "slots": []},
+    "i2v": {"label": "Image(s) → video", "model": "grok-imagine-video-1-5-preview",
+            "slots": [{"key": "image_urls", "label": "Images", "max": 7, "array": true, "required": true}]}}},
+
+  "sd1lite": {"label": "Seedance 1.0 Lite", "vendor": "ByteDance", "price_key": "resolution",
+   "price": {"480p": 2, "720p": 4.5, "1080p": 10}, "price_note": "from kie page",
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["480p", "720p", "1080p"], "default": "480p"},
+    {"key": "duration", "type": "select", "opts": ["5", "10"], "default": "5", "label": "duration (s)"},
+    {"key": "camera_fixed", "type": "bool", "default": false},
+    {"key": "seed", "type": "int", "min": -1, "max": 2147483647, "default": -1, "label": "seed (-1 = random)"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2v": {"label": "Text → video", "model": "bytedance/v1-lite-text-to-video", "slots": [],
+            "extra": [{"key": "aspect_ratio", "type": "select", "opts": ["16:9", "4:3", "1:1", "3:4", "9:16", "9:21"], "default": "16:9"},
+                      {"key": "enable_safety_checker", "type": "bool", "default": false, "label": "enable_safety_checker (upstream)"}]},
+    "i2v": {"label": "Start / end image → video", "model": "bytedance/v1-lite-image-to-video",
+            "slots": [{"key": "image_url", "label": "Start image", "required": true}, {"key": "end_image_url", "label": "End image"}]}}},
+
+  "sd1pro": {"label": "Seedance 1.0 Pro", "vendor": "ByteDance", "price_key": "resolution",
+   "price": {"480p": 2.8, "720p": 6, "1080p": 14}, "price_note": "480p verified",
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["480p", "720p", "1080p"], "default": "480p"},
+    {"key": "duration", "type": "select", "opts": ["5", "10"], "default": "5", "label": "duration (s)"},
+    {"key": "camera_fixed", "type": "bool", "default": false},
+    {"key": "seed", "type": "int", "min": -1, "max": 2147483647, "default": -1, "label": "seed (-1 = random)"},
+    {"key": "enable_safety_checker", "type": "bool", "default": false, "label": "enable_safety_checker (upstream)"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2v": {"label": "Text → video", "model": "bytedance/v1-pro-text-to-video", "slots": [],
+            "extra": [{"key": "aspect_ratio", "type": "select", "opts": ["21:9", "16:9", "4:3", "1:1", "3:4", "9:16"], "default": "16:9"}]},
+    "i2v": {"label": "Image → video", "model": "bytedance/v1-pro-image-to-video",
+            "slots": [{"key": "image_url", "label": "Image", "required": true}]}}},
+
+  "sd2fast": {"label": "Seedance 2.0 Fast", "vendor": "ByteDance", "price_key": "resolution", "price": null,
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["480p", "720p"], "default": "480p"},
+    {"key": "duration", "type": "int", "min": 4, "max": 15, "default": 5, "label": "duration (s)"},
+    {"key": "aspect_ratio", "type": "select", "opts": ["16:9", "4:3", "1:1", "3:4", "9:16", "21:9", "adaptive"], "default": "16:9"},
+    {"key": "generate_audio", "type": "bool", "default": true, "label": "audio"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2v": {"label": "Text → video", "model": "bytedance/seedance-2-fast", "slots": []},
+    "ref": {"label": "Reference images (@Image1…)", "model": "bytedance/seedance-2-fast",
+            "slots": [{"key": "reference_image_urls", "label": "Reference images", "max": 9, "array": true, "required": true}],
+            "hint": "Refer to images in the prompt as @Image1, @Image2… in upload order."}}}
+ },
+ "image": {
+  "qwen21": {"label": "Qwen Image 2.1", "vendor": "Alibaba", "price_key": "resolution", "price": {"1K": 4, "2K": 8}, "price_note": "from kie page",
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["1K", "2K"], "default": "1K"},
+    {"key": "output_format", "type": "select", "opts": ["png", "jpeg", "webp"], "default": "png"},
+    {"key": "enhance_prompt", "type": "bool", "default": false, "label": "enhance_prompt (LLM rewrites your prompt)"},
+    {"key": "seed", "type": "int", "min": 0, "max": 2147483647, "default": 0, "label": "seed (0 = random)"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2i": {"label": "Text → image", "model": "qwen2-1/text-to-image", "slots": [],
+            "extra": [{"key": "aspect_ratio", "type": "select", "opts": ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9", "9:21"], "default": "16:9"}]},
+    "edit": {"label": "Edit / combine images", "model": "qwen2-1/image-to-image",
+             "slots": [{"key": "image_urls", "label": "Images", "max": 10, "array": true, "required": true}],
+             "extra": [{"key": "aspect_ratio", "type": "select", "opts": ["auto", "16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3", "21:9", "9:21"], "default": "auto"}],
+             "hint": "Refer to inputs as image 1, image 2… Keep ≤4 for best fidelity. Use 'auto' aspect to keep the first image's framing for video frames."}}},
+  "flux2pro": {"label": "FLUX.2 Pro", "vendor": "Black Forest Labs", "price_key": "resolution", "price": {"1K": 5, "2K": 7}, "price_note": "from kie page",
+   "params": [
+    {"key": "resolution", "type": "select", "opts": ["1K", "2K"], "default": "1K"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2i": {"label": "Text → image", "model": "flux-2/pro-text-to-image", "slots": [],
+            "extra": [{"key": "aspect_ratio", "type": "select", "opts": ["16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"], "default": "16:9"}]},
+    "edit": {"label": "Edit / combine images", "model": "flux-2/pro-image-to-image",
+             "slots": [{"key": "input_urls", "label": "Images", "max": 8, "array": true, "required": true}],
+             "extra": [{"key": "aspect_ratio", "type": "select", "opts": ["auto", "16:9", "9:16", "1:1", "4:3", "3:4", "3:2", "2:3"], "default": "auto"}]}}},
+  "seedream5pro": {"label": "Seedream 5.0 Pro", "vendor": "ByteDance", "price_key": "quality", "price": null,
+   "params": [
+    {"key": "quality", "type": "select", "opts": ["basic", "high"], "default": "basic"},
+    {"key": "aspect_ratio", "type": "select", "opts": ["16:9", "9:16", "1:1", "4:3", "3:4", "2:3", "3:2", "21:9"], "default": "16:9"},
+    {"key": "output_format", "type": "select", "opts": ["png", "jpeg"], "default": "png"},
+    {"key": "nsfw_checker", "type": "bool", "default": false, "label": "nsfw_checker (kie post-filter)"}],
+   "modes": {
+    "t2i": {"label": "Text → image", "model": "seedream/5-pro-text-to-image", "slots": []},
+    "edit": {"label": "Edit / combine images", "model": "seedream/5-pro-image-to-image",
+             "slots": [{"key": "image_urls", "label": "Images", "max": 10, "array": true, "required": true}]}}}
+ }
+}

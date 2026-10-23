@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>kie studio</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%237c5cff'/><path d='M12 9l12 7-12 7z' fill='white'/></svg>">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand"><span class="logo">▶</span> kie studio</div>
+  <nav class="tabs" id="tabs">
+    <button data-kind="video" class="active">Video</button>
+    <button data-kind="image">Image</button>
+  </nav>
+  <div class="balance" id="balance" title="Click to refresh">…</div>
+  <button class="icon" id="notifBtn" title="Desktop notifications when jobs finish">🔔</button>
+</header>
+
+<main class="layout">
+  <section class="composer card" id="composer">
+    <div class="row2">
+      <label class="field"><span>Model</span><select id="model"></select></label>
+    </div>
+    <div class="seg" id="modes"></div>
+    <div class="health" id="health"></div>
+    <div id="slots"></div>
+    <label class="field">
+      <span>Prompt <small id="pcount"></small></span>
+      <textarea id="prompt" rows="6" placeholder="Describe the shot: subject, action, camera, lighting, sound…"></textarea>
+    </label>
+    <div class="hint" id="hint"></div>
+    <div class="params" id="params"></div>
+    <div class="estimate" id="estimate"></div>
+    <div class="actions">
+      <button class="primary" id="go">Generate <kbd>Ctrl ↵</kbd></button>
+      <button class="ghost" id="reset" title="Reset parameters to model defaults">Reset</button>
+    </div>
+  </section>
+
+  <section class="side">
+    <div class="card" id="activeWrap" hidden>
+      <h3>In progress</h3>
+      <div id="active"></div>
+    </div>
+    <div class="card">
+      <div class="histbar">
+        <h3>History</h3>
+        <input id="search" type="search" placeholder="Search prompts & notes">
+        <select id="fModel"><option value="">All models</option></select>
+        <select id="fStatus"><option value="">Any status</option><option value="success">Succeeded</option><option value="fail">Failed</option></select>
+        <label class="chk"><input type="checkbox" id="fFav"> ★ only</label>
+      </div>
+      <div class="selbar" id="selbar" hidden>
+        <span id="selcount"></span>
+        <button class="small" id="stitchBtn">Stitch selected into one video</button>
+        <button class="small ghost" id="selClear">Clear</button>
+      </div>
+      <div class="grid" id="history"></div>
+      <button class="ghost wide" id="more" hidden>Load more</button>
+      <div class="stats" id="stats"></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="libDlg" class="dlg">
+  <div class="dlghead"><h3>Image library</h3><span class="sp"></span>
+    <label class="btn small">Upload…<input type="file" id="libUpload" accept="image/*" multiple hidden></label>
+    <button class="icon" data-close>✕</button></div>
+  <p class="muted" id="libTarget"></p>
+  <div class="libgrid" id="libGrid"></div>
+</dialog>
+
+<dialog id="detDlg" class="dlg wide">
+  <div class="dlghead"><h3 id="detTitle"></h3><span class="sp"></span><button class="icon" data-close>✕</button></div>
+  <div id="detBody"></div>
+</dialog>
+
+<div id="toasts"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

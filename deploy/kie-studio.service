@@ -1,0 +1,17 @@
+# systemd --user unit.  Install:  ./deploy/install.sh
+[Unit]
+Description=kie studio (local kie.ai web UI)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/kie-studio
+ExecStart=/usr/bin/python3 -m kie_studio serve
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+# jobs already accepted by kie survive restarts (they are re-polled from studio.db)
+KillSignal=SIGINT
+TimeoutStopSec=10
+
+[Install]
+WantedBy=default.target

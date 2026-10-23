@@ -1,0 +1,23 @@
+[
+ {"nav": "URL"},
+ {"js": "[$('#model').value, d().mode, $('#selbar').hidden, $$('.job').length, $('#estimate').textContent]"},
+ {"js": "$('#modes button[data-mode=i2v]').click(); [d().mode, $$('.slot').length]"},
+ {"js": "document.querySelector('.job [data-act=reuse]').click(); 1", "wait": 1.2},
+ {"js": "[d().model, d().mode, Object.keys(d().slots), $$('.slot .thumb').length, $('#prompt').value.slice(0,40), JSON.stringify(d().params)]", "shot": "s_reuse"},
+ {"js": "$('#model').value='sd1lite'; $('#model').dispatchEvent(new Event('change')); [d().model, d().mode, JSON.stringify(d().slots).length, JSON.stringify(d().params)]"},
+ {"js": "$('#model').value='sd2fast'; $('#model').dispatchEvent(new Event('change')); [d().model, d().mode, Object.keys(d().slots)]"},
+ {"js": "$('#prompt').value='@Image1 and @Image5 dance'; $('#prompt').dispatchEvent(new Event('input')); $('#hint').textContent"},
+ {"js": "document.querySelector('.job [data-act=menu]').click(); $$('.menu button').map(b=>b.textContent)", "shot": "s_menu"},
+ {"js": "closeMenu(); document.querySelector('.job .media').click(); 1", "wait": 1.2},
+ {"js": "[$('#detDlg').open, $('#detTitle').textContent, $$('#detBody video').length]", "shot": "s_detail"},
+ {"js": "$('#detDlg').close(); document.querySelector('.slot [data-add]').click(); 1", "wait": 1.2},
+ {"js": "[$('#libDlg').open, $$('.libitem').length]", "shot": "s_lib"},
+ {"js": "$('#libDlg').close(); $$('#tabs button')[1].click(); 1", "wait": 1.2},
+ {"js": "[S.kind, $('#model').value, d().mode, $$('.job').length, $('#history').textContent.trim().slice(0,60)]", "shot": "s_image"},
+ {"js": "$('#modes button[data-mode=edit]').click(); [d().mode, $$('.slot').length, $('#hint').textContent]"},
+ {"js": "$$('#tabs button')[0].click(); $('#search').value='baby'; $('#search').dispatchEvent(new Event('input')); 1", "wait": 1},
+ {"js": "[$$('.job').length, S.order.length]"},
+ {"js": "$('#search').value=''; $('#search').dispatchEvent(new Event('input')); 1", "wait": 1},
+ {"js": "$$('.job .selbox')[0].click(); $$('.job .selbox')[1].click(); [$('#selbar').hidden, $('#selcount').textContent, $('#stitchBtn').disabled]"},
+ {"js": "1"}
+]

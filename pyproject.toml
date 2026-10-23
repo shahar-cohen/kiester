@@ -1,0 +1,24 @@
+[project]
+name = "kie-studio"
+version = "2.0.0"
+description = "Local web UI + CLI for kie.ai video and image generation"
+requires-python = ">=3.10"
+# Ubuntu: apt install python3-flask python3-pil ffmpeg   (no npm / JS build step — the front end is plain static files)
+dependencies = ["flask>=2.3", "pillow>=9"]
+
+[project.optional-dependencies]
+# only needed for the browser smoke test in tests/
+dev = ["websockets>=12"]
+
+[project.scripts]
+kie-studio = "kie_studio.__main__:main"
+
+[tool.setuptools]
+packages = ["kie_studio"]
+
+[tool.setuptools.package-data]
+kie_studio = ["models.json", "static/*"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
