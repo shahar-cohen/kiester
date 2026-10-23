@@ -10,7 +10,7 @@
  {"js": "document.querySelector('.job [data-act=menu]').click(); $$('.menu button').map(b=>b.textContent)", "shot": "s_menu"},
  {"js": "closeMenu(); document.querySelector('.job .media').click(); 1", "wait": 1.2},
  {"js": "[$('#detDlg').open, $('#detTitle').textContent, $$('#detBody video').length]", "shot": "s_detail"},
- {"js": "$('#detDlg').close(); document.querySelector('.slot [data-add]').click(); 1", "wait": 1.2},
+ {"js": "$('#detDlg').close(); if (!document.querySelector('.slot [data-add]')) $('#modes button:last-child').click(); document.querySelector('.slot [data-add]').click(); 1", "wait": 1.2},
  {"js": "[$('#libDlg').open, $$('.libitem').length]", "shot": "s_lib"},
  {"js": "$('#libDlg').close(); $$('#tabs button')[1].click(); 1", "wait": 1.2},
  {"js": "[S.kind, $('#model').value, d().mode, $$('.job').length, $('#history').textContent.trim().slice(0,60)]", "shot": "s_image"},
