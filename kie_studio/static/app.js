@@ -5,6 +5,8 @@ const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
 const mediaUrl = rel => "/media/" + String(rel).split("/").map(encodeURIComponent).join("/");
+// audio always starts at the model default (on): it is never remembered between visits or carried across models
+const AUDIO_KEYS = ["audio", "enable_audio", "generate_audio"];
 const ACTIVE = ["queued", "uploading", "submitting", "running", "downloading"];
 const STATUS_LABEL = {queued: "queued", uploading: "uploading inputs", submitting: "submitting", running: "generating",
                       downloading: "saving", success: "done", fail: "failed"};
@@ -65,7 +67,7 @@ function loadDrafts() {
     if (saved && S.reg[kind][saved.model]) {
       dr.model = saved.model;
       dr.mode = S.reg[kind][saved.model].modes[saved.mode] ? saved.mode : Object.keys(S.reg[kind][saved.model].modes)[0];
-      dr.params = saved.params || {}; dr.prompt = saved.prompt || ""; dr.slots = saved.slots || {};
+      dr.params = Object.fromEntries(Object.entries(saved.params || {}).filter(([k]) => !AUDIO_KEYS.includes(k))); dr.prompt = saved.prompt || ""; dr.slots = saved.slots || {};
     }
     S.draft[kind] = dr;
   }
@@ -266,7 +268,7 @@ function switchModel(key, modeKey) {
   const keep = {};
   for (const p of pspec()) {
     const v = old.params[p.key];
-    if (v === undefined || p.key === "seed") continue;   // "random" is 0 on some models and -1 on others
+    if (v === undefined || p.key === "seed" || AUDIO_KEYS.includes(p.key)) continue;   // "random" is 0 on some models and -1 on others
     if (p.type === "select" && !p.opts.some(o => String(o).toLowerCase() === String(v).toLowerCase())) continue;
     if (p.type === "select") keep[p.key] = p.opts.find(o => String(o).toLowerCase() === String(v).toLowerCase());
     else keep[p.key] = v;
@@ -400,7 +402,7 @@ setInterval(() => { if (!$("#activeWrap").hidden) renderActive(); }, 1000);
 function paramTags(j) {
   const p = j.params || {}, out = [];
   for (const k of ["resolution", "quality", "duration", "aspect_ratio"]) if (p[k] != null && p[k] !== "") out.push(k === "duration" ? `${p[k]}s` : p[k]);
-  for (const k of ["audio", "enable_audio", "generate_audio"]) if (p[k]) out.push("♪");
+  for (const k of AUDIO_KEYS) if (p[k]) out.push("♪");
   return out;
 }
 
