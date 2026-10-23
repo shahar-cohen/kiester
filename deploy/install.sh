@@ -10,9 +10,6 @@ python3 -c "import flask, PIL" || { echo "missing deps: sudo apt install python3
 command -v ffmpeg >/dev/null || { echo "missing ffmpeg: sudo apt install ffmpeg"; exit 1; }
 [ -s ~/.config/kie/token ] || { echo "missing API key in ~/.config/kie/token"; exit 1; }
 
-# the old single-file UI held port 8770; stop it so the service can bind
-pkill -f 'scripts/kie-video-ui.py' && echo "stopped old kie-video-ui.py" || true
-
 mkdir -p ~/.config/systemd/user
 ln -sf "$PWD/deploy/kie-studio.service" ~/.config/systemd/user/kie-studio.service
 systemctl --user daemon-reload

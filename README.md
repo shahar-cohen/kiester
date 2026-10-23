@@ -17,7 +17,7 @@ tests/           test_e2e.py (fake kie API, no credits) + browser_smoke.py (head
 ## Run
 
 ```zsh
-./deploy/install.sh                 # systemd --user service on http://127.0.0.1:8770 (stops the old kie-video-ui.py)
+./deploy/install.sh                 # systemd --user service on http://127.0.0.1:8770
 python3 -m kie_studio serve         # or run it in the foreground
 journalctl --user -u kie-studio -f  # logs
 ```
