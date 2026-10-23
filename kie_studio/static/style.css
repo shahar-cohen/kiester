@@ -114,3 +114,10 @@ button.small{border:1px solid var(--line);background:var(--card2);cursor:pointer
 #toasts{position:fixed;bottom:16px;right:16px;display:flex;flex-direction:column;gap:8px;z-index:50;max-width:min(420px,90vw)}
 .toast{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:10px;padding:10px 14px;box-shadow:0 6px 24px #0005;font-size:13px;word-break:break-word}
 .toast.bad{border-left-color:var(--bad)}.toast.ok{border-left-color:var(--ok)}
+.keyscreen{position:fixed;inset:0;z-index:40;background:var(--bg);display:grid;place-items:center;padding:16px;overflow:auto}
+.keycard{width:min(520px,100%);padding:28px}
+.keycard h2{margin:18px 0 8px;font-size:20px}.keycard p{margin:0 0 10px;color:var(--muted)}
+.keycard ol{padding-left:20px;margin:0 0 6px;font-size:13px;line-height:1.7}.keycard a{color:var(--acc2)}
+.keyrow{display:flex;gap:6px}.keyrow input{flex:1;width:auto;background:var(--card2);border:1px solid var(--line);border-radius:8px;padding:10px;outline:none;font-family:ui-monospace,monospace}
+.keyrow input:focus{border-color:var(--acc)}.keyrow button{padding:8px 12px}
+.keyerr{color:var(--bad);font-size:13px;min-height:18px}

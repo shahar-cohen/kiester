@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """kie-studio: local web UI for kie.ai video + image generation.
 
-Run:  python3 -m kie_studio serve      (or the systemd --user unit in deploy/)   → http://127.0.0.1:8770
-Data: ~/Videos/kie/ (studio.db, assets/, outputs). Key: ~/.config/kie/token (never sent to the browser).
+Run:  python3 -m kie_studio serve   (installed launchers run `open`, which starts it if needed)  → http://127.0.0.1:8770
+Data: ~/Videos/kie/ (~/Movies/kie on macOS). Key: ~/.config/kie/token (set from the UI; never sent to the browser).
 Env:  KIE_STUDIO_HOST (default 127.0.0.1), KIE_STUDIO_PORT (8770), KIE_STUDIO_TOKEN (required when not on localhost).
 """
-import hashlib, io, json, mimetypes, os, re, secrets, shutil, sqlite3, subprocess, threading, time, uuid
+import hashlib, io, json, mimetypes, os, re, secrets, shutil, sqlite3, subprocess, sys, threading, time, uuid, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from flask import Flask, request, jsonify, send_from_directory, abort, make_response
 
-from .client import Kie, KieError, api_key
+from .client import Kie, KieError, api_key, save_api_key, key_source
 
 try:
     from PIL import Image, ImageOps
@@ -17,7 +17,7 @@ except ImportError:  # still works, just without image normalisation
     Image = None
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-MEDIA = os.path.expanduser(os.environ.get("KIE_STUDIO_MEDIA", "~/Videos/kie"))
+MEDIA = os.path.expanduser(os.environ.get("KIE_STUDIO_MEDIA", "~/Movies/kie" if sys.platform == "darwin" else "~/Videos/kie"))
 ASSETS = os.path.join(MEDIA, "assets")
 IMAGES_OUT = os.path.join(MEDIA, "images")
 DB_PATH = os.path.join(MEDIA, "studio.db")
@@ -203,6 +203,11 @@ def kie():
         if _kie is None: _kie = Kie(api_key())
         return _kie
 
+def reset_kie():
+    global _kie
+    with kie_lock: _kie = None
+    _credits.update(t=0, v=None, err=None)
+
 pool = ThreadPoolExecutor(max_workers=3)
 
 def submit(jid):
@@ -252,11 +257,38 @@ def fetch_outputs(jid, urls, kind):
         job_update(jid, status="success", outputs=outs, error=f"result not saved locally ({e}); kie keeps it 14 days — use Retry download")
         ev(jid, f"download failed: {e}")
 
-def ffmpeg(*args):
-    return subprocess.run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", *args], capture_output=True, text=True, timeout=600)
+_ffmpeg = None
+def ffmpeg_exe():
+    """System ffmpeg if present, else the static build shipped by the imageio-ffmpeg package (Windows/macOS installs)."""
+    global _ffmpeg
+    if _ffmpeg is None:
+        _ffmpeg = shutil.which("ffmpeg")
+        if not _ffmpeg:
+            try:
+                import imageio_ffmpeg; _ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+            except Exception: _ffmpeg = ""
+    return _ffmpeg
+
+NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)   # no console flashing on Windows
+
+def ffmpeg(*args, timeout=600):
+    exe = ffmpeg_exe()
+    if not exe: raise ValueError("ffmpeg not found — rerun the installer (it installs imageio-ffmpeg) or install ffmpeg.")
+    return subprocess.run([exe, "-hide_banner", "-loglevel", "error", "-y", *args], capture_output=True, text=True,
+                          timeout=timeout, creationflags=NO_WINDOW)
+
+def probe(f):
+    """(width, height, has_audio, duration) parsed from `ffmpeg -i` — avoids needing ffprobe, which imageio-ffmpeg lacks."""
+    exe = ffmpeg_exe()
+    r = subprocess.run([exe, "-hide_banner", "-i", f], capture_output=True, text=True, timeout=60, creationflags=NO_WINDOW)
+    err = r.stderr
+    m = re.search(r"Stream #.*?Video:.*?(\d{2,5})x(\d{2,5})", err)
+    dm = re.search(r"Duration: (\d+):(\d+):([\d.]+)", err)
+    dur = int(dm[1]) * 3600 + int(dm[2]) * 60 + float(dm[3]) if dm else 5.0
+    return (int(m[1]), int(m[2])) if m else (1280, 720), bool(re.search(r"Stream #.*?Audio:", err)), dur
 
 def make_poster(rel):
-    src = os.path.join(MEDIA, rel); pr = os.path.join("posters", os.path.splitext(os.path.basename(rel))[0] + ".jpg")
+    src = os.path.join(MEDIA, rel); pr = "posters/" + os.path.splitext(os.path.basename(rel))[0] + ".jpg"   # DB paths are always posix
     os.makedirs(os.path.join(MEDIA, "posters"), exist_ok=True)
     r = ffmpeg("-ss", "0.3", "-i", src, "-frames:v", "1", "-vf", "scale=480:-2", "-q:v", "4", os.path.join(MEDIA, pr))
     return pr if r.returncode == 0 else None
@@ -376,7 +408,23 @@ def media(p):
 @app.get("/api/config")
 def config():
     reg = {k: {mk: {kk: vv for kk, vv in mv.items() if kk != "_key"} for mk, mv in REG[k].items()} for k in ("video", "image")}
-    return jsonify(registry=reg, credit_usd=CREDIT_USD)
+    try: api_key(); has_key = True
+    except KieError: has_key = False
+    return jsonify(registry=reg, credit_usd=CREDIT_USD, has_key=has_key, key_source=key_source(), ffmpeg=bool(ffmpeg_exe()))
+
+@app.post("/api/key")
+def set_key():
+    """First-run / change-key screen. The key is checked against kie.ai before it is saved; it is never echoed back."""
+    k = str((request.get_json(force=True) or {}).get("key") or "").strip()
+    if k.lower().startswith("bearer "): k = k[7:].strip()
+    if not re.fullmatch(r"[A-Za-z0-9_\-.]{16,200}", k): raise ValueError("That doesn't look like a kie.ai API key (copy it from kie.ai → API Key).")
+    if key_source() == "env": raise ValueError("The key is set by the KIE_API_KEY environment variable, which overrides a saved key. Change it there.")
+    try: bal = Kie(k).credits()
+    except KieError as e:
+        if e.code == 401: raise ValueError("kie.ai rejected this key. Check that you copied all of it.")
+        raise ValueError(f"Couldn't reach kie.ai to check the key ({e}). Check your internet connection and try again.")
+    save_api_key(k); reset_kie(); _credits.update(v=bal, t=time.time())
+    return jsonify(ok=True, credits=bal)
 
 _credits = {"t": 0, "v": None, "err": None}
 @app.get("/api/credits")
@@ -516,12 +564,7 @@ def stitch():
     jobs_ = [get_job(i) for i in ids]
     files = [os.path.join(MEDIA, j["outputs"][0]) for j in jobs_ if j["kind"] == "video" and j["outputs"]]
     if len(files) < 2: raise ValueError("Select at least two finished videos.")
-    def probe(f):
-        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "stream=codec_type,width,height:format=duration", "-of", "json", f],
-                           capture_output=True, text=True); d = json.loads(r.stdout or "{}")
-        v = next((s for s in d.get("streams", []) if s["codec_type"] == "video"), {})
-        return v.get("width", 1280), v.get("height", 720), any(s["codec_type"] == "audio" for s in d.get("streams", [])), float(d.get("format", {}).get("duration", 5))
-    info = [probe(f) for f in files]; W, H = info[0][0] // 2 * 2, info[0][1] // 2 * 2
+    info = [(*wh, a, dur) for wh, a, dur in map(probe, files)]; W, H = info[0][0] // 2 * 2, info[0][1] // 2 * 2
     args, filt, n = [], [], len(files)
     for f in files: args += ["-i", f]
     for i, (w, h, has_a, dur) in enumerate(info):
@@ -579,9 +622,19 @@ def stats():
                    disk_mb=round(size / 1e6, 1), free_gb=round(shutil.disk_usage(MEDIA).free / 1e9, 1))
 
 
-def main():
-    try: api_key()
-    except KieError as e: raise SystemExit(str(e))
+def running(port=PORT):
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/config", timeout=2) as r: return r.status == 200
+    except Exception: return False
+
+def main(log=None):
+    if log is not None or sys.stdout is None:   # pythonw / launchd / autostart: no console, so log to a file
+        log = log or os.path.join(MEDIA, "kie-studio.log")
+        if os.path.exists(log) and os.path.getsize(log) > 5e6: os.replace(log, log + ".old")
+        f = open(log, "a", buffering=1, encoding="utf-8"); sys.stdout = sys.stderr = f
+        print(f"# kie-studio log — safe to delete\n{time.strftime('%Y-%m-%d %H:%M:%S')} starting")
+    # Windows lets a second process bind the same port, so check for a live instance explicitly
+    if running(): raise SystemExit(f"kie-studio is already running on port {PORT}.")
     from werkzeug.serving import make_server
     try: srv = make_server(HOST, PORT, app, threaded=True)
     except OSError as e:
@@ -589,7 +642,8 @@ def main():
     migrate(); recover()
     threading.Thread(target=poller, daemon=True).start()
     threading.Thread(target=backfill_credits, daemon=True).start()
-    print(f"kie-studio on http://{HOST}:{PORT}", flush=True)
+    print(f"kie-studio on http://127.0.0.1:{PORT}", flush=True)
+    if not ffmpeg_exe(): print("warning: ffmpeg not found — posters, frames and stitching are disabled", flush=True)
     srv.serve_forever()
 
 

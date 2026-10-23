@@ -25,7 +25,10 @@ class FakeKie(BaseHTTPRequestHandler):
         self.end_headers(); self.wfile.write(body)
 
     def do_GET(self):
-        if self.path.startswith("/api/v1/chat/credit"): return self.send({"code": 200, "data": FakeKie.balance})
+        if self.path.startswith("/api/v1/chat/credit"):
+            if self.headers.get("Authorization") == "Bearer rejected-key-0000000000":
+                return self.send({"code": 401, "msg": "You do not have access permissions"})
+            return self.send({"code": 200, "data": FakeKie.balance})
         if self.path.startswith("/api/v1/jobs/recordInfo"):
             tid = self.path.split("taskId=")[1]; t = FakeKie.tasks[tid]; t["polls"] += 1
             base = f"http://127.0.0.1:{self.server.server_port}"
@@ -67,7 +70,7 @@ class StudioE2E(unittest.TestCase):
         fk = f"http://127.0.0.1:{cls.fake.server_port}"
         cls.port = free_port(); cls.base = f"http://127.0.0.1:{cls.port}"
         media = os.path.join(cls.tmp, "media"); os.makedirs(media)
-        cls.env = {**os.environ, "KIE_STUDIO_MEDIA": media, "KIE_STUDIO_PORT": str(cls.port), "KIE_API_KEY": "test",
+        cls.env = {**os.environ, "KIE_KEY_FILE": os.path.join(cls.tmp, "token"), "KIE_STUDIO_MEDIA": media, "KIE_STUDIO_PORT": str(cls.port), "KIE_API_KEY": "test",
                    "KIE_API_BASE": fk + "/api/v1", "KIE_UPLOAD_URL": fk + "/upload", "KIE_STUDIO_POLL": "0.3", "PYTHONDONTWRITEBYTECODE": "1"}
         cls.media = media
         cls.start()
@@ -210,6 +213,31 @@ class StudioE2E(unittest.TestCase):
         _, r = self.video_job(); self.wait(r["id"])
         _, rows = self.req("GET", f"/api/jobs?since={t}")
         self.assertIn(r["id"], [x["id"] for x in rows])
+
+    def test_first_run_without_key(self):
+        """No key anywhere → UI is told so; a rejected key is not saved; a good key is saved 0600 and used."""
+        port = free_port(); keyfile = os.path.join(self.tmp, "fresh-token")
+        env = {**self.env, "KIE_STUDIO_PORT": str(port), "KIE_KEY_FILE": keyfile,
+               "KIE_STUDIO_MEDIA": os.path.join(self.tmp, "media2")}
+        env.pop("KIE_API_KEY")
+        p = subprocess.Popen([sys.executable, "-m", "kie_studio", "serve"], cwd=ROOT, env=env, stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
+        base, self.base = self.base, f"http://127.0.0.1:{port}"
+        try:
+            for _ in range(100):
+                try: urllib.request.urlopen(self.base + "/api/config", timeout=1); break
+                except Exception: time.sleep(0.1)
+            _, c = self.req("GET", "/api/config"); self.assertFalse(c["has_key"]); self.assertIsNone(c["key_source"])
+            _, cr = self.req("GET", "/api/credits"); self.assertIsNone(cr["credits"]); self.assertTrue(cr["error"].startswith("401"))
+            st, r = self.req("POST", "/api/key", {"key": "short"}); self.assertEqual(st, 400)
+            st, r = self.req("POST", "/api/key", {"key": "rejected-key-0000000000"}); self.assertEqual(st, 400); self.assertIn("rejected", r["error"])
+            self.assertFalse(os.path.exists(keyfile))
+            st, r = self.req("POST", "/api/key", {"key": "  Bearer good-key-1234567890abcdef \n"}); self.assertEqual(st, 200, r)
+            self.assertEqual(open(keyfile).read().strip(), "good-key-1234567890abcdef")
+            if os.name != "nt": self.assertEqual(os.stat(keyfile).st_mode & 0o777, 0o600)
+            _, c = self.req("GET", "/api/config"); self.assertTrue(c["has_key"]); self.assertNotIn("good-key", json.dumps(c))
+            _, cr = self.req("GET", "/api/credits?fresh=1"); self.assertEqual(cr["credits"], FakeKie.balance)
+        finally:
+            self.base = base; p.terminate(); p.wait(5)
 
     def test_zz_restart_recovery(self):
         # a task accepted by kie must survive a server restart and still complete

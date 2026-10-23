@@ -683,7 +683,12 @@ async function loadCredits(fresh) {
   try {
     const r = await api("GET", "/api/credits" + (fresh ? "?fresh=1" : ""));
     const b = $("#balance");
-    if (r.credits == null) { b.textContent = "balance ?"; b.title = r.error || ""; b.classList.add("low"); return; }
+    if (r.credits == null) {
+      b.textContent = "balance ?"; b.title = r.error || ""; b.classList.add("low");
+      if (/^401\b/.test(r.error || "") && $("#keyScreen").hidden && S.keySource !== "env")
+        showKeyScreen({reason: "kie.ai no longer accepts the saved API key (it may have been reset). Paste the current one."});
+      return;
+    }
     S.balance = r.credits;
     b.innerHTML = `<b>${r.credits.toLocaleString()}</b> cr · $${r.usd.toFixed(2)}`;
     b.title = `Spent last 24 h: ${(+r.spent_24h).toLocaleString()} credits over ${r.jobs_24h} jobs. Click to refresh.` + (r.error ? `\nLast refresh failed: ${r.error}` : "");
@@ -853,11 +858,43 @@ $$("dialog").forEach(dl => {
 document.addEventListener("visibilitychange", () => { if (!document.hidden) { poll(); loadCredits(); } });
 window.addEventListener("beforeunload", () => { d().prompt = $("#prompt").value; for (const k of ["video", "image"]) store.set("draft." + k, S.draft[k]); });
 
+// ------------------------------------------------------------------ API key screen
+// Shown on first run (no key saved), when kie rejects the saved key, or from the 🔑 button.
+function showKeyScreen({reason = "", cancellable = false} = {}) {
+  $("#keyScreen").hidden = false;
+  $("#keyTitle").textContent = reason ? "Your kie.ai API key needs attention" : cancellable ? "Change API key" : "Connect your kie.ai account";
+  $("#keyErr").textContent = reason;
+  $("#keyCancel").hidden = !cancellable;
+  $("#keyInput").value = ""; $("#keyInput").focus();
+  return new Promise(res => { S.keyDone = res; });
+}
+$("#keyShow").addEventListener("click", () => { const i = $("#keyInput"); i.type = i.type === "password" ? "text" : "password"; i.focus(); });
+$("#keyCancel").addEventListener("click", () => { $("#keyScreen").hidden = true; S.keyDone?.(false); });
+$("#keyForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const key = $("#keyInput").value.trim();
+  if (!key) { $("#keyErr").textContent = "Paste your API key first."; return; }
+  $("#keySave").disabled = true; $("#keySave").textContent = "Checking with kie.ai…"; $("#keyErr").textContent = "";
+  try {
+    const r = await api("POST", "/api/key", {key});
+    $("#keyScreen").hidden = true; $("#keyInput").value = "";
+    toast(`Connected. Balance: ${r.credits.toLocaleString()} credits.`, "ok");
+    S.keyDone?.(true); loadCredits(true);
+  } catch (err) { $("#keyErr").textContent = err.message; }
+  finally { $("#keySave").disabled = false; $("#keySave").textContent = "Save and connect"; }
+});
+$("#keyBtn").addEventListener("click", () => {
+  if (S.keySource === "env") return toast("The API key comes from the KIE_API_KEY environment variable; change it there.");
+  showKeyScreen({cancellable: true});
+});
+
 // ------------------------------------------------------------------ boot
 (async function boot() {
   try {
     const c = await api("GET", "/api/config");
-    S.reg = c.registry; S.creditUsd = c.credit_usd;
+    S.reg = c.registry; S.creditUsd = c.credit_usd; S.keySource = c.key_source;
+    if (!c.has_key) await showKeyScreen();
+    if (!c.ffmpeg) toast("ffmpeg is missing, so thumbnails, frame grabs and stitching are off. Rerun the installer to fix.", "bad", 0);
   } catch (e) {
     document.body.insertAdjacentHTML("afterbegin", `<div class="toast bad" style="margin:20px">${esc(e.message)}</div>`); return;
   }

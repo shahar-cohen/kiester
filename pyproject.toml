@@ -2,9 +2,9 @@
 name = "kie-studio"
 version = "2.0.0"
 description = "Local web UI + CLI for kie.ai video and image generation"
-requires-python = ">=3.10"
-# Ubuntu: apt install python3-flask python3-pil ffmpeg   (no npm / JS build step — the front end is plain static files)
-dependencies = ["flask>=2.3", "pillow>=9"]
+requires-python = ">=3.9"
+# Normal installs use install.bat / install.command / install.sh, which put these in .venv. No npm, no JS build step.
+dependencies = ["flask>=2.3", "pillow>=9", "imageio-ffmpeg>=0.4.9"]
 
 [project.optional-dependencies]
 # only needed for the browser smoke test in tests/

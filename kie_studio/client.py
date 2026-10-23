@@ -10,10 +10,10 @@ import json, mimetypes, os, re, time, uuid, urllib.request, urllib.error
 
 API = os.environ.get("KIE_API_BASE", "https://api.kie.ai/api/v1")          # overridable for tests
 UPLOAD = os.environ.get("KIE_UPLOAD_URL", "https://kieai.redpandaai.co/api/file-stream-upload")
-KEY_FILE = os.path.expanduser("~/.config/kie/token")
+KEY_FILE = os.path.expanduser(os.environ.get("KIE_KEY_FILE", "~/.config/kie/token"))
 
 FRIENDLY = {
-    401: "Invalid or missing API key (check ~/.config/kie/token).",
+    401: "Invalid or missing API key (set it in kie studio).",
     402: "Not enough kie.ai credits. Top up at kie.ai/billing.",
     404: "Endpoint or task not found.",
     422: "kie rejected the request parameters.",
@@ -43,10 +43,26 @@ def _int(x):
 def api_key():
     k = os.environ.get("KIE_API_KEY", "").strip()
     if not k and os.path.exists(KEY_FILE):
-        k = open(KEY_FILE).read().strip()
+        k = open(KEY_FILE, encoding="utf-8-sig").read().strip()   # -sig: Notepad may have added a BOM
     if not k:
-        raise KieError(401, "no API key found in $KIE_API_KEY or ~/.config/kie/token")
+        raise KieError(401, "no API key saved yet")
     return k
+
+
+def key_source():
+    if os.environ.get("KIE_API_KEY", "").strip(): return "env"
+    return "file" if os.path.exists(KEY_FILE) and open(KEY_FILE, encoding="utf-8-sig").read().strip() else None
+
+
+def save_api_key(key):
+    """Write the key readable by this user only (0600 on Linux/macOS; on Windows the profile folder is already private)."""
+    os.makedirs(os.path.dirname(KEY_FILE), exist_ok=True)
+    tmp = KEY_FILE + ".tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f: f.write(key.strip() + "\n")
+    os.replace(tmp, KEY_FILE)
+    try: os.chmod(KEY_FILE, 0o600)
+    except OSError: pass
 
 
 class Kie:

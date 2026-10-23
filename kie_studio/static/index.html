@@ -16,6 +16,7 @@
   </nav>
   <div class="balance" id="balance" title="Click to refresh">…</div>
   <button class="icon" id="notifBtn" title="Desktop notifications when jobs finish">🔔</button>
+  <button class="icon" id="keyBtn" title="kie.ai API key">🔑</button>
 </header>
 
 <main class="layout">
@@ -76,6 +77,25 @@
   <div class="dlghead"><h3 id="detTitle"></h3><span class="sp"></span><button class="icon" data-close>✕</button></div>
   <div id="detBody"></div>
 </dialog>
+
+<div class="keyscreen" id="keyScreen" hidden>
+  <form class="card keycard" id="keyForm" autocomplete="off">
+    <div class="brand"><span class="logo">▶</span> kie studio</div>
+    <h2 id="keyTitle">Connect your kie.ai account</h2>
+    <p id="keyIntro">kie studio needs your kie.ai API key to generate videos and images. It stays on this computer and is only ever sent to kie.ai.</p>
+    <ol class="muted">
+      <li>Sign in at <a href="https://kie.ai/api-key" target="_blank" rel="noopener">kie.ai/api-key</a> (create a free account if you don't have one).</li>
+      <li>Copy your API key.</li>
+      <li>Paste it below.</li>
+    </ol>
+    <label class="field"><span>API key</span>
+      <div class="keyrow"><input id="keyInput" type="password" spellcheck="false" placeholder="Paste your API key" autocomplete="off">
+        <button type="button" class="ghost" id="keyShow" title="Show / hide">👁</button></div></label>
+    <div class="keyerr" id="keyErr" role="alert"></div>
+    <div class="actions"><button class="primary" id="keySave" type="submit">Save and connect</button>
+      <button class="ghost" type="button" id="keyCancel" hidden>Cancel</button></div>
+  </form>
+</div>
 
 <div id="toasts"></div>
 <script src="/static/app.js"></script>

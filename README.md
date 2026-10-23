@@ -1,37 +1,53 @@
 # kie studio
 
-Local web UI + CLI for [kie.ai](https://kie.ai) video and image generation. One Python repo, no npm:
-Flask serves a plain HTML/CSS/JS front end (no build step), SQLite holds history, ffmpeg does posters/frames/stitching.
+Local web UI + CLI for [kie.ai](https://kie.ai) video and image generation, for Windows, macOS and Linux.
+One Python repo, no npm, no Electron: Flask serves a plain HTML/CSS/JS front end (no build step) that opens in a
+Chrome/Edge app window; SQLite holds history; ffmpeg does posters/frames/stitching.
 
 ```
+install.bat / install.command / install.sh   double-click installers (Windows / macOS / Linux)
 kie_studio/
   server.py      Flask app, job runner, poller, asset normalisation, migration from the v1 history.json
   client.py      kie.ai API client (stdlib only)
   models.json    model registry: params, modes, image slots, prices   ← edit this to add models
-  __main__.py    CLI (serve / gen / jobs / models / credits / task)
+  __main__.py    CLI (serve / open / gen / jobs / models / credits / task)
   static/        index.html, style.css, app.js
-deploy/          systemd --user unit + install.sh
+deploy/installer.py   the installer window (Tk) + text mode; stdlib only
 tests/           test_e2e.py (fake kie API, no credits) + browser_smoke.py (headless Chrome)
 ```
 
-## Run
+## Install
 
-```zsh
-./deploy/install.sh                 # systemd --user service on http://127.0.0.1:8770
-python3 -m kie_studio serve         # or run it in the foreground
-journalctl --user -u kie-studio -f  # logs
-```
+Download the repo (or `git clone`), then double-click the installer for your system:
 
-Requires `python3-flask python3-pil ffmpeg` and the API key in `~/.config/kie/token`.
-Data lives in `~/Videos/kie/`: `studio.db`, `assets/` (input images, deduplicated), `images/`, `posters/`, videos at top level.
-The v1 `history.json` + `uploads/` are imported once on first start and left untouched.
+| | |
+|---|---|
+| **Windows** | `install.bat` — installs Python 3.13 with winget if it's missing (no admin needed) |
+| **macOS** | `install.command` — if macOS blocks it: right-click → Open → Open. Needs Python from python.org (the installer opens the download page if it's missing) |
+| **Linux** | `./install.sh` — installs `python3-venv` / `python3-tk` with your package manager if missing (asks for your password) |
 
-| env | default | |
-|---|---|---|
-| `KIE_STUDIO_PORT` | 8770 | |
-| `KIE_STUDIO_HOST` | 127.0.0.1 | anything non-local requires `KIE_STUDIO_TOKEN`; open `/?token=…` once to set the cookie |
-| `KIE_STUDIO_MEDIA` | ~/Videos/kie | |
-| `KIE_API_KEY` | — | overrides the token file |
+The installer window lets you choose an app-menu / Start-menu entry, a desktop shortcut, starting at login, and
+optionally paste the API key. Everything installs for your user only: Python packages go into `.venv/` inside this folder.
+**Uninstall** is a button in the same window (`--uninstall --console` in text mode); it keeps your media, history and key.
+Without a desktop (or with `--console`) it asks the same questions in the terminal.
+
+The **kie studio** shortcut starts the server in the background if it isn't running and opens it in its own
+app window (Chrome / Edge / Brave / Chromium `--app` mode; no tabs or address bar), falling back to the default browser.
+Edge ships with Windows, so Windows always gets the app window. The UI is always at http://127.0.0.1:8770.
+
+On first start the app asks for your kie.ai API key (from https://kie.ai/api-key), checks it with kie.ai and saves it
+to `~/.config/kie/token` (user-only permissions). Change it later with the 🔑 button.
+
+| | default |
+|---|---|
+| data | `~/Videos/kie/` (macOS: `~/Movies/kie/`) — `studio.db`, `assets/`, `images/`, `posters/`, videos, `kie-studio.log` |
+| ffmpeg | the system one if installed, otherwise the copy bundled by the `imageio-ffmpeg` package |
+| autostart | Linux: systemd `--user` unit (`journalctl --user -u kie-studio`), macOS: LaunchAgent, Windows: Startup folder |
+
+Environment overrides: `KIE_STUDIO_PORT` (8770), `KIE_STUDIO_MEDIA`, `KIE_API_KEY` (overrides the saved key),
+`KIE_KEY_FILE`, `KIE_STUDIO_HOST` (non-local addresses require `KIE_STUDIO_TOKEN`; open `/?token=…` once).
+
+For development: `python3 -m kie_studio serve` with flask, pillow and (optionally) imageio-ffmpeg installed.
 
 ## CLI
 
@@ -68,7 +84,7 @@ python3 -m kie_studio credits
   but never carries `seed` (0 = random on Wan, fixed on Seedance).
 
 **Security**
-- API key never reaches the browser. Host-header check (DNS rebinding) + required `X-Studio` header (CSRF from other sites).
+- API key never reaches the browser (the key screen sends it once; it is never echoed back). Host-header check (DNS rebinding) + required `X-Studio` header (CSRF from other sites).
 - `/media` never serves the database, JSON, dotfiles or partial downloads.
 
 ## Workflow features

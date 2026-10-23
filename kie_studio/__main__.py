@@ -1,6 +1,7 @@
 """kie-studio command line.
 
-  python3 -m kie_studio serve                       run the web UI (http://127.0.0.1:8770)
+  python3 -m kie_studio serve [--log FILE]          run the web UI (http://127.0.0.1:8770)
+  python3 -m kie_studio open                        start it in the background if needed, then open it in an app window
   python3 -m kie_studio models                      list models / modes / params
   python3 -m kie_studio credits                     show the kie.ai balance
   python3 -m kie_studio gen MODEL MODE "prompt" [--image SLOT=FILE ...] [--set KEY=VALUE ...] [--wait]
@@ -10,10 +11,91 @@
 `gen` and `jobs` talk to the running server, so CLI jobs show up in the UI history and get the same
 upload caching, pre-flight balance check, restart recovery and download retries.
 """
-import argparse, json, os, sys, time, urllib.request, urllib.error, uuid
+import argparse, json, os, subprocess, sys, time, urllib.request, urllib.error, uuid, webbrowser
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-BASE = f"http://127.0.0.1:{os.environ.get('KIE_STUDIO_PORT', '8770')}"
+PORT = os.environ.get("KIE_STUDIO_PORT", "8770")
+BASE = f"http://127.0.0.1:{PORT}"
+UI_URL = f"http://127.0.0.1:{PORT}/"
+
+
+def find_chromium():
+    """Chrome / Edge / Brave / Chromium, whichever exists. Edge ships with Windows, so Windows always has one."""
+    import shutil
+    if os.name == "nt":
+        roots = [os.environ.get(v, "") for v in ("PROGRAMFILES", "PROGRAMFILES(X86)", "LOCALAPPDATA")]
+        rels = [r"Google\Chrome\Application\chrome.exe", r"Microsoft\Edge\Application\msedge.exe",
+                r"BraveSoftware\Brave-Browser\Application\brave.exe", r"Chromium\Application\chrome.exe"]
+        cands = [os.path.join(r, x) for x in rels for r in roots if r]
+    elif sys.platform == "darwin":
+        apps = ["Google Chrome.app/Contents/MacOS/Google Chrome", "Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+                "Brave Browser.app/Contents/MacOS/Brave Browser", "Chromium.app/Contents/MacOS/Chromium"]
+        cands = [os.path.join(d, a) for a in apps for d in ("/Applications", os.path.expanduser("~/Applications"))]
+    else:
+        cands = [shutil.which(n) for n in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser",
+                                            "microsoft-edge", "microsoft-edge-stable", "brave-browser")]
+    return next((c for c in cands if c and os.path.isfile(c)), None)
+
+
+def open_window(url=UI_URL):
+    """Open the UI as its own app window (no tabs / address bar). Falls back to the default browser."""
+    exe = find_chromium()
+    if exe:
+        kw = {"creationflags": subprocess.DETACHED_PROCESS} if os.name == "nt" else {"start_new_session": True}
+        try:
+            subprocess.Popen([exe, f"--app={url}", "--window-size=1440,920", "--new-window"], stdin=subprocess.DEVNULL,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, **kw)
+            return
+        except OSError: pass
+    webbrowser.open(url)
+
+
+def is_up():
+    try:
+        with urllib.request.urlopen(BASE + "/api/config", timeout=2) as r: return r.status == 200
+    except Exception: return False
+
+
+def open_ui():
+    """What the desktop shortcut runs: reuse a running server, or start one detached (it outlives this process)."""
+    if not is_up():
+        py = sys.executable
+        if os.name == "nt":   # pythonw: no console window
+            w = os.path.join(os.path.dirname(py), "pythonw.exe"); py = w if os.path.exists(w) else py
+            flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            kw = {"creationflags": flags}
+        else: kw = {"start_new_session": True}
+        subprocess.Popen([py, "-m", "kie_studio", "serve", "--log", ""], cwd=os.path.dirname(HERE), stdin=subprocess.DEVNULL,
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True, **kw)
+        for _ in range(150):   # first start may migrate data / build posters
+            if is_up(): break
+            time.sleep(0.2)
+        else:
+            media = os.path.expanduser(os.environ.get("KIE_STUDIO_MEDIA", "~/Movies/kie" if sys.platform == "darwin" else "~/Videos/kie"))
+            msg = f"kie studio did not start. See the log: {os.path.join(media, 'kie-studio.log')}"
+            _alert(msg); sys.exit(msg)
+    open_window()
+
+
+def _alert(msg):
+    """Show an error even when started from a shortcut with no console."""
+    try:
+        import tkinter, tkinter.messagebox
+        r = tkinter.Tk(); r.withdraw(); tkinter.messagebox.showerror("kie studio", msg); r.destroy()
+    except Exception: pass
+
+
+def make_icons(out):
+    """Draw the app icon (PNG for Linux, ICO for Windows, ICNS for macOS) with Pillow."""
+    from PIL import Image, ImageDraw
+    os.makedirs(out, exist_ok=True)
+    s = 1024; im = Image.new("RGBA", (s, s), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    d.rounded_rectangle((40, 40, s - 40, s - 40), radius=230, fill=(124, 92, 255, 255))
+    d.polygon([(390, 280), (390, 744), (770, 512)], fill=(255, 255, 255, 255))
+    im.resize((256, 256), Image.LANCZOS).save(os.path.join(out, "kie-studio.png"))
+    im.save(os.path.join(out, "kie-studio.ico"), sizes=[(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)])
+    try: im.save(os.path.join(out, "kie-studio.icns"))
+    except Exception: pass
 
 
 def call(method, path, body=None, files=None):
@@ -47,7 +129,9 @@ def coerce(v):
 def main():
     ap = argparse.ArgumentParser(prog="kie_studio", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("serve"); sub.add_parser("models"); sub.add_parser("credits")
+    sv = sub.add_parser("serve"); sv.add_argument("--log", nargs="?", const="", default=None, help="log to FILE (empty: default log in the data folder)")
+    sub.add_parser("open"); ic = sub.add_parser("icons"); ic.add_argument("out")
+    sub.add_parser("models"); sub.add_parser("credits")
     g = sub.add_parser("gen")
     g.add_argument("model"); g.add_argument("mode"); g.add_argument("prompt")
     g.add_argument("--image", action="append", default=[], metavar="SLOT=FILE", help="repeat; same slot twice = multiple images")
@@ -59,7 +143,9 @@ def main():
     a = ap.parse_args()
 
     if a.cmd == "serve":
-        from .server import main as serve; serve(); return
+        from .server import main as serve; serve(log=a.log); return
+    if a.cmd == "open": open_ui(); return
+    if a.cmd == "icons": make_icons(a.out); return
     if a.cmd == "models":
         reg = json.load(open(os.path.join(HERE, "models.json")))
         for kind in ("video", "image"):
